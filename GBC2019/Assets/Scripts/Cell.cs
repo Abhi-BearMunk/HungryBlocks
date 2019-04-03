@@ -1,69 +1,57 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
-public class Cell : MonoBehaviour {
+[System.Serializable]
+public class ChangeCellTypeEvent : UnityEvent<Cell.CellType>
+{
+}
 
-    public Blocks parentBlock;
-    public SpriteRenderer spriteRenderer;
-    public SpriteRenderer spriteBackground;
-    public CellAnimation cellAnim;
-
-    // Use this for initialization
-    void Start () {
-		
-	}
-	
-	// Update is called once per frame
-	void Update () {
-		
-	}
-
-    public void SetColor()
+// <summary>
+// A unit which can be placed on the Grid.
+// Generally exists as part of a Block.
+// </summary>
+// <remarks>
+// Multiple cells can exist in the same position on the grid.
+// </remarks>
+public class Cell : MonoBehaviour, IPoolable
+{
+    public enum CellType { R, G, B, Y };
+    [SerializeField]
+    private CellType type;
+    public CellType cellType
     {
-        if(spriteRenderer && parentBlock)
+        get
         {
-            spriteRenderer.color = LevelGrid.Instance().typeColor[parentBlock.myType];
+            return type;
+        }
+        set
+        {
+            type = cellType;
+            OnChangeCellType.Invoke(cellType);
         }
     }
+    public ChangeCellTypeEvent OnChangeCellType;
 
-    public void SetBackgroundColor(Color color)
+    private void Awake()
     {
-        if (spriteBackground && parentBlock)
-        {
-            Color alphaColor = color;
-            alphaColor.a = 0.5f;
-            spriteBackground.color = alphaColor;
-        }
+        cellType = type;
+    }
+    // Start is called before the first frame update
+    void Start()
+    {
+        
     }
 
-    public void ToggleShieldVisual(bool toggle)
+    // Update is called once per frame
+    void Update()
     {
-        spriteBackground.gameObject.SetActive(toggle);
+        
     }
 
-    public LevelGrid.GridType GetGridType()
+    public void Reset()
     {
-        if(!parentBlock)
-        {
-            Debug.Log("No parent block " + name);
-            return LevelGrid.GridType.Empty;
-            //Destroy(gameObject);
-        }
-        return parentBlock.myType;
-    }
 
-    public void KillCell()
-    {
-        if(cellAnim)
-        {
-            cellAnim.enabled = true;
-            cellAnim.Disintigrate();
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-        Destroy(this);
     }
 }
