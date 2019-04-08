@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// TODO: Use this !!!
 public class CellManager : Pool<Cell>
 {
     private static CellManager instance;
@@ -18,8 +19,8 @@ public class CellManager : Pool<Cell>
     {
         if (instance == null)
         {
-            Debug.LogWarning("Grid Manager not found! Creating a new one with default values");
-            new GameObject("Grid Manager", typeof(CellManager));
+            Debug.LogWarning("Cell Manager not found! Creating a new one with default values");
+            new GameObject("Cell Manager", typeof(CellManager));
         }
         return instance;
     }

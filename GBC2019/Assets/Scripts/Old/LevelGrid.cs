@@ -64,16 +64,16 @@ namespace old
 
         void InitializeGridCellObjects()
         {
-            //for (int i = 0; i < width; i++)
-            //{
-            //    for (int j = 0; j < height; j++)
-            //    {
-            //        GameObject emptyCell = Instantiate(emptyCellPrefab, transform.position + new Vector3(i * LevelGrid.Instance().cellSize, j * LevelGrid.Instance().cellSize, 0), Quaternion.identity);
-            //        levelGrid[i, j] = emptyCell.GetComponent<Cell>();
-            //        levelGrid[i, j].parentBlock = levelBlock;
-            //        emptyCells[i, j] = emptyCell.GetComponent<Cell>();
-            //    }
-            //}
+            for (int i = 0; i < width; i++)
+            {
+                for (int j = 0; j < height; j++)
+                {
+                    GameObject emptyCell = Instantiate(emptyCellPrefab, transform.position + new Vector3(i * LevelGrid.Instance().cellSize, j * LevelGrid.Instance().cellSize, 0), Quaternion.identity);
+                    levelGrid[i, j] = emptyCell.GetComponent<Cell>();
+                    levelGrid[i, j].parentBlock = levelBlock;
+                    emptyCells[i, j] = emptyCell.GetComponent<Cell>();
+                }
+            }
 
             GameObject emptyCellO = Instantiate(emptyCellPrefab, transform.position + new Vector3(0, 0, 0), Quaternion.identity);
             emptyCell = emptyCellO.GetComponent<Cell>();

@@ -13,6 +13,7 @@ public class CellGroupRow
     public CellGroupRow(int _length, int _id = 0)
     {
         id = _id;
+        cells = new List<CellGroup>();
         for (int i = 0; i < _length; i++)
         {
             cells.Add(new CellGroup());

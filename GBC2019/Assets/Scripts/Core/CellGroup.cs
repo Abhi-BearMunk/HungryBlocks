@@ -7,7 +7,12 @@ using UnityEngine;
 // </summary>
 public class CellGroup
 {
-    List<Cell> cells = new List<Cell>();
+    List<Cell> cells;
+
+    public CellGroup()
+    {
+        cells = new List<Cell>();
+    }
 
     public void AddCell(Cell cell)
     {

@@ -41,3 +41,15 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: CellBg
+    uniqueID: 960448269
+    locked: 0
+  - name: CellBase
+    uniqueID: 568079499
+    locked: 0
+  - name: CellFg
+    uniqueID: 464839941
+    locked: 0
+  - name: CellFFg
+    uniqueID: 2813373367
+    locked: 0

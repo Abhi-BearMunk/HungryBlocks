@@ -9,10 +9,9 @@ public interface IPoolable
 
 public class Pool<T> : MonoBehaviour where T : MonoBehaviour, IPoolable  
 {
-    List<T> pool = new List<T>();
+    LinkedList<T> pool = new LinkedList<T>();
     public GameObject poolObjectPrefab;
     public int size = 20;
-    private GameObject tempObject;
 
     private void Awake()
     {
@@ -29,7 +28,7 @@ public class Pool<T> : MonoBehaviour where T : MonoBehaviour, IPoolable
         {
             T newPoolItem = Instantiate(poolObjectPrefab).GetComponent<T>();
             newPoolItem.gameObject.SetActive(false);
-            pool.Add(newPoolItem);
+            pool.AddLast(newPoolItem);
         }
     }
 
@@ -38,17 +37,14 @@ public class Pool<T> : MonoBehaviour where T : MonoBehaviour, IPoolable
     // </summary>
     T Create()
     {
-        for(int i = 0; i < size; i++)
+        T ret;
+        if(pool.Count > 0)
         {
-            if(!pool[i].gameObject.activeSelf)
-            {
-                pool[i].gameObject.SetActive(true);
-                return pool[i];
-            }
+            ret = pool.Last.Value;
+            pool.RemoveLast();
+            return ret;
         }
-        T newPoolItem = Instantiate(poolObjectPrefab).GetComponent<T>();
-        pool.Add(newPoolItem);
-        return newPoolItem;
+        return Instantiate(poolObjectPrefab).GetComponent<T>();
     }
 
     // <summary>
@@ -58,5 +54,6 @@ public class Pool<T> : MonoBehaviour where T : MonoBehaviour, IPoolable
     {
         poolItem.Reset();
         poolItem.gameObject.SetActive(false);
+        pool.AddLast(poolItem);
     }
 }
