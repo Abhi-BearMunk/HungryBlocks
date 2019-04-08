@@ -41,6 +41,7 @@ public class Cell : MonoBehaviour, IPoolable
     public BlockEvent OnSetParent;
     public BlockEvent OnChangeParent;
 
+    public UnityEvent OnKill;
     private void Awake()
     {
         SetCellType(cellType);
@@ -96,8 +97,13 @@ public class Cell : MonoBehaviour, IPoolable
         {
             spawning = true;
         }
+        else
+        {
+            parentBlock.shape.RemoveCell(this);
+        }
         parentBlock = block;
         SetCellType(parentBlock.GetBlockType());
+        parentBlock.shape.AddCell(this);
         if(spawning)
         {
             OnSetParent.Invoke(parentBlock);
@@ -111,5 +117,12 @@ public class Cell : MonoBehaviour, IPoolable
     public void Reset()
     {
 
+    }
+
+    public void Kill()
+    {
+        OnKill.Invoke();
+        //TODO: Change it to pool
+        Destroy(this.gameObject);
     }
 }

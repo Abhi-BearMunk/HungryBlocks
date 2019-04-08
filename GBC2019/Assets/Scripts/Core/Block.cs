@@ -6,8 +6,8 @@ public class Block : MonoBehaviour
 {
     private Cell.CellType blockType;
     public GridManager grid;
-    private Shape shape;
-    
+    public Shape shape { get; private set; }
+
     // Start is called before the first frame update
     void Start()
     {

@@ -241,6 +241,12 @@ public class Shape
         SetSecondaryParameters();
     }
 
+    void RemoveBottomRows(int count = 1)
+    {
+        cellMatrix.RemoveRange(0, count);
+
+    }
+
     void AddRowTop()
     {
         // Create new entry in the matrix
@@ -293,6 +299,7 @@ public class Shape
 
     public Cell RemoveCell(Vector2Int cellPos)
     {
+
         return null;
     }
 
