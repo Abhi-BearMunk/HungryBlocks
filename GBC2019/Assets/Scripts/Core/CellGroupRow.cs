@@ -7,8 +7,8 @@ using UnityEngine;
 // </summary>
 public class CellGroupRow
 {
-    int id;
-    List<CellGroup> cells;
+    public int id { get; private set; }
+    public List<CellGroup> cells { get; private set; }
 
     public CellGroupRow(int _length, int _id = 0)
     {
@@ -16,7 +16,7 @@ public class CellGroupRow
         cells = new List<CellGroup>();
         for (int i = 0; i < _length; i++)
         {
-            cells.Add(new CellGroup());
+            cells.Add(new CellGroup(i));
         }
     }
 
@@ -39,7 +39,7 @@ public class CellGroupRow
 
         while (column >= cells.Count)
         {
-            cells.Add(new CellGroup());
+            cells.Add(new CellGroup(cells.Count));
             Debug.LogWarning("Row " + id + " length insufficient for adding column " + column + ". Resizing!");
         }
 

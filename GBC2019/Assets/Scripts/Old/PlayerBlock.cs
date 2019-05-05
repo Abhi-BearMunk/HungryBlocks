@@ -6,7 +6,6 @@ namespace old
 {
     public class PlayerBlock : Blocks
     {
-        Vector2Int bottomLeft = new Vector2Int(0, 0);
         Vector2Int center = new Vector2Int(0, 0);
         public ShieldReserve shieldReserve;
         public GameObject enemyBulletBlock;

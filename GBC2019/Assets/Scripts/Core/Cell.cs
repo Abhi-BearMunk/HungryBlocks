@@ -3,85 +3,50 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
-[System.Serializable]
-public class ChangeCellTypeEvent : UnityEvent<Cell.CellType>
+/// <summary>
+/// A unit which can be placed on the Grid.
+/// Generally exists as part of a Block.
+/// </summary>
+/// <remarks>
+/// Multiple cells can exist in the same position on the grid.
+/// </remarks>
+public class Cell : MonoBehaviour
 {
-}
-
-[System.Serializable]
-public class Vector2IntEvent : UnityEvent<Vector2Int>
-{
-}
-
-[System.Serializable]
-public class GridEvent : UnityEvent<GridManager>
-{
-}
-
-// <summary>
-// A unit which can be placed on the Grid.
-// Generally exists as part of a Block.
-// </summary>
-// <remarks>
-// Multiple cells can exist in the same position on the grid.
-// </remarks>
-public class Cell : MonoBehaviour, IPoolable
-{
-    public enum CellType { R, G, B, Y };
-    [SerializeField]
-    private CellType cellType;
-    public ChangeCellTypeEvent OnChangeCellType;
-
-    private GridManager grid;
     private Vector2Int gridPosition;
-    public GridEvent OnSetGrid;
-    public Vector2IntEvent OnSetPosition;
-
+    [SerializeField]
     private Block parentBlock = null;
-    public BlockEvent OnSetParent;
-    public BlockEvent OnChangeParent;
+
+    public UnityEvent OnPlacedOnGrid;
+    public UnityEvent OnSetPosition;
+    public UnityEvent OnSetPositionImmidiate;
+    public UnityEvent OnSetParent;
+    public UnityEvent OnKill;
 
     private void Awake()
     {
-        SetCellType(cellType);
-    }
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
-    public void SetCellType(CellType _cellType)
-    {
-        if(cellType != _cellType)
+        if (GameObject.Find("Cells"))
         {
-            cellType = _cellType;
-            OnChangeCellType.Invoke(cellType);
-        }       
+            transform.parent = GameObject.Find("Cells").transform;
+        }
     }
 
-    public CellType GetCellType()
+    public void PlaceOnGrid()
     {
-        return cellType;
-    }
-
-    public void SetGrid(GridManager gridManager)
-    {
-        grid = gridManager;
-        OnSetGrid.Invoke(grid);
+        OnPlacedOnGrid.Invoke();
     }
 
     public void SetGridPosition(Vector2Int position)
     {
-        grid.TryChangeCellGroup(this, position);
+        parentBlock.GetGrid().MoveCell(this, position);
         gridPosition = position;
-        OnSetPosition.Invoke(position);
+        OnSetPosition.Invoke();
+    }
+
+    public void SetGridPositionImmidiate(Vector2Int position)
+    {
+        parentBlock.GetGrid().MoveCell(this, position);
+        gridPosition = position;
+        OnSetPositionImmidiate.Invoke();
     }
 
     public Vector2Int GetGridPosition()
@@ -91,25 +56,20 @@ public class Cell : MonoBehaviour, IPoolable
 
     public void SetParentBlock(Block block)
     {
-        bool spawning = false;
-        if(parentBlock == null)
-        {
-            spawning = true;
-        }
         parentBlock = block;
-        SetCellType(parentBlock.GetBlockType());
-        if(spawning)
-        {
-            OnSetParent.Invoke(parentBlock);
-        }
-        else
-        {
-            OnChangeParent.Invoke(parentBlock);
-        }
+        OnSetParent.Invoke();
     }
 
-    public void Reset()
+    public Block GetParentBlock()
     {
+        return parentBlock;
+    }
 
+    public void Kill()
+    {
+        parentBlock.GetGrid().RemoveCell(gridPosition, this);
+        parentBlock.GetShape().RemoveCell(this);
+        OnKill.Invoke();
+        Destroy(this);
     }
 }

@@ -5,12 +5,12 @@ using UnityEngine;
 public class LevelManager : MonoBehaviour
 {
     public GridManager grid;
-    public GridVisualizer gridVisualizer;
+    //public GridVisualizer gridVisualizer;
     public WaveManager waveManager;
     // Start is called before the first frame update
     void Start()
     {
-        
+        StartLevel();
     }
 
     // Update is called once per frame
@@ -22,7 +22,7 @@ public class LevelManager : MonoBehaviour
     void StartLevel()
     {
         grid.InitializeGrid();
-        gridVisualizer.SpawnGridVisuals();
+        //gridVisualizer.SpawnGridVisuals();
         waveManager.InitiateWave();
     }
 }
