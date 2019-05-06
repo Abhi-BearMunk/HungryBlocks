@@ -20,7 +20,8 @@ public class CellVisualizer : MonoBehaviour
     public GameObject arrow;
 
     private Vector2 offset;
-    private Vector3 pos;
+    [HideInInspector]
+    public Vector3 pos;
     // Start is called before the first frame update
     void Awake()
     {

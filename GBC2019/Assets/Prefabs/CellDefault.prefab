@@ -225,3 +225,4 @@ MonoBehaviour:
   - {fileID: 21300000, guid: f95e6243a4708db4f853a62b78331db9, type: 3}
   cellBase: {fileID: 1299698040476980615}
   arrow: {fileID: 0}
+  pos: {x: 0, y: 0, z: 0}

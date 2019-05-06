@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// TODO: This should be in the Block class not a property
 public class WrapAround : MonoBehaviour, IPostTransformCellProperty
 {
     public void PostTransform(Cell cell)

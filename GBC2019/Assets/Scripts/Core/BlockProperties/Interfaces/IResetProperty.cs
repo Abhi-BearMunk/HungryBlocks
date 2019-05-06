@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public interface IPreTransformBlockProperty
+public interface IResetProperty
 {
-    bool PreTransform(Vector2Int move);
+    void Reset();
 }

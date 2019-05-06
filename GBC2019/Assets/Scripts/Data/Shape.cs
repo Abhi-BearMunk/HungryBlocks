@@ -47,6 +47,8 @@ public class Shape
     public Callback OnSetSecondaryParameters;
     public Callback OnTranslate;
     public Callback OnRemoveLastCell;
+    public delegate void CellCallback(Cell cell);
+    public CellCallback OnAddCell;
 
     public Shape()
     {
@@ -167,415 +169,48 @@ public class Shape
         SetSecondaryParameters();
     }
 
-    void AddRowBottom()
+    /// <summary>
+    /// Clear all the lists 
+    /// </summary>
+    void Refresh()
     {
-        // Create new row in the matrix
-        cellMatrix.Insert(0, new List<Cell>());
-        // Fill up the new row
-        for (int i = left; i <= right; i++)
-        {
-            cellMatrix[0].Add(null);
-        }
-        // Extend the Orthogonal boundaries
-        leftBoundary.Insert(0, null);
-        rightBoundary.Insert(0, null);
-        // Lower the bottom
-        bottom--;
-        // Update AABB
-        SetSecondaryParameters();
-    }
-
-    void AddRowTop()
-    {
-        // Create new entry in the matrix
-        cellMatrix.Add(new List<Cell>());
-        // Fill up the new row
-        for (int i = left; i <= right; i++)
-        {
-            cellMatrix[cellMatrix.Count - 1].Add(null);
-        }
-        // Extend the Orthogonal boundaries
-        leftBoundary.Add(null);
-        rightBoundary.Add(null);
-        // Raise the top
-        top++;
-        // Update AABB
-        SetSecondaryParameters();
-    }
-
-    void AddColumnLeft()
-    {
-        // Create a new column entry on each row on the matrix
-        foreach (List<Cell> row in cellMatrix)
-        {
-            row.Insert(0, null);
-        }
-        // Extend the Orthogonal boundaries
-        bottomBoundary.Insert(0, null);
-        topBoundary.Insert(0, null);
-        // Pull left
-        left--;
-        // Update AABB
-        SetSecondaryParameters();
-    }
-
-    void AddColumnRight()
-    {
-        // Create a new column entry on each row on the matrix
-        foreach (List<Cell> row in cellMatrix)
-        {
-            row.Add(null);
-        }
-        // Extend the Orthogonal boundaries
-        bottomBoundary.Add(null);
-        topBoundary.Add(null);
-        // Push right
-        right++;
-        // Update AABB
-        SetSecondaryParameters();
-    }
-
-    void RemoveRowBottom()
-    {
-        if (cellMatrix.Count == 0)
-        {
-            Debug.Log("Can't remove bottom row, shape is empty");
-            return;
-        }
-        // Remove the bottom-most row from the matrix
-        cellMatrix.RemoveAt(0);
-        // Collapse the Orthogonal boundaries
-        leftBoundary.RemoveAt(0);
-        rightBoundary.RemoveAt(0);
-        // Raise the bottom
-        bottom++;
-        // Update AABB
-        SetSecondaryParameters();
-    }
-
-    void RemoveRowTop()
-    {
-        if (cellMatrix.Count == 0)
-        {
-            Debug.Log("Can't remove top row, shape is empty");
-            return;
-        }
-        // Remove the top-most row from the matrix
-        cellMatrix.RemoveAt(cellMatrix.Count - 1);
-        // Collapse the Orthogonal boundaries
-        leftBoundary.RemoveAt(leftBoundary.Count - 1);
-        rightBoundary.RemoveAt(rightBoundary.Count - 1);
-        // Lower the top
-        top--;
-        // Update AABB
-        SetSecondaryParameters();
-    }
-
-    void RemoveColumnLeft()
-    {
-        if (cellMatrix.Count == 0)
-        {
-            Debug.Log("Can't remove Left column, shape is empty");
-            return;
-        }
-        // Remove the left column entry on each row on the matrix
-        foreach (List<Cell> row in cellMatrix)
-        {
-            row.RemoveAt(0);
-        }
-        // Collapse the Orthogonal boundaries
-        bottomBoundary.RemoveAt(0);
-        topBoundary.RemoveAt(0);
-        // Push left
-        left++;
-        // Update AABB
-        SetSecondaryParameters();
-    }
-
-    void RemoveColumnRight()
-    {
-        if (cellMatrix.Count == 0)
-        {
-            Debug.Log("Can't remove Right column, shape is empty");
-            return;
-        }
-        // Remove the right column entry on each row on the matrix
-        foreach (List<Cell> row in cellMatrix)
-        {
-            row.RemoveAt(row.Count - 1);
-        }
-        // Collapse the Orthogonal boundaries
-        bottomBoundary.RemoveAt(bottomBoundary.Count - 1);
-        topBoundary.RemoveAt(topBoundary.Count - 1);
-        // Pull right
-        right--;
-        // Update AABB
-        SetSecondaryParameters();
+        leftBoundary.Clear();
+        rightBoundary.Clear();
+        bottomBoundary.Clear();
+        topBoundary.Clear();
+        cellMatrix.Clear();
     }
 
     /// <summary>
-    /// Add a new cell on the grid to this shape
+    /// Add a cell on the grid to this shape
     /// </summary>
     public void AddCell(Cell cell)
     {
-        // If the shape is empty, just intialize with it
-        if(cellMatrix.Count == 0)
-        {
-            CreateShape(new List<Cell>() { cell });
-            return;
-        }
-
-        #region Extend AABB
-        // Get offsets from the boundary to check if new cell is out of AABB bounds
-        int bottomDelta = cell.GetGridPosition().y - bottom;
-        int topDelta = cell.GetGridPosition().y - top;
-        int leftDelta = cell.GetGridPosition().x - left;
-        int rightDelta = cell.GetGridPosition().x - right;
-
-        bool bottomExtreme = false;
-        bool topExtreme = false;
-        bool leftExtreme = false;
-        bool rightExtreme = false;
-
-        // Extend the AABB as necessary
-        while (bottomDelta < 0)
-        {
-            AddRowBottom();
-            bottomDelta++;
-            bottomExtreme = true;
-        }
-        while (topDelta > 0)
-        {
-            AddRowTop();
-            topDelta--;
-            topExtreme = true;
-        }
-        while (leftDelta < 0)
-        {
-            AddColumnLeft();
-            leftDelta++;
-            leftExtreme = true;
-        }
-        while (rightDelta > 0)
-        {
-            AddColumnRight();
-            rightDelta--;
-            rightExtreme = true;
-        }
-        #endregion
-
-        // Add the cell to the matrix
-        cellMatrix[cell.GetGridPosition().y - bottom][cell.GetGridPosition().x - left] = cell;
-        // Add the cell to the cell list
         cellList.Add(cell);
-
-        #region Update Boundary
-        // Update the boundaries as necessary, checking if the entry was newly added and hence null OR if it is a new cell over a existing one
-        if (bottomBoundary[cell.GetGridPosition().x - left] == null || bottomExtreme)
+        Refresh();
+        CreateShape(cellList);
+        if (OnAddCell != null)
         {
-            bottomBoundary[cell.GetGridPosition().x - left] = cell;
+            OnAddCell(cell);
         }
-        if (topBoundary[cell.GetGridPosition().x - left] == null || topExtreme)
-        {
-            topBoundary[cell.GetGridPosition().x - left] = cell;
-        }
-        if (rightBoundary[cell.GetGridPosition().y - bottom] == null || rightExtreme)
-        {
-            rightBoundary[cell.GetGridPosition().y - bottom] = cell;
-        }
-        if (leftBoundary[cell.GetGridPosition().y - bottom] == null || leftExtreme)
-        {
-            leftBoundary[cell.GetGridPosition().y - bottom] = cell;
-        }
-        #endregion
     }
-    
+
     /// <summary>
-    /// Remove a cell by position
+    /// Add a list of cells on the grid to this shape
     /// </summary>
-    /// <param name="cellPos">position of the cell on grid</param>
-    /// <returns></returns>
-    public Cell RemoveCell(Vector2Int cellPos)
+    /// <param name="cells"></param>
+    public void AddCells(List<Cell> cells)
     {
-        if(cellList.Count == 0)
+        foreach(Cell cell in cells)
         {
-            Debug.Log("Shape is Empty");
-            return null;
-        }
-
-        int row = cellPos.y - bottom;
-        int column = cellPos.x - left;
-        if(row < 0 || column < 0 || row >= cellMatrix.Count || column >= cellMatrix[row].Count)
-        {
-            Debug.Log("Remove Cell attempt not in AABB");
-            return null;
-        }
-        //if(cellMatrix[row][column] == null)
-        //{
-        //    Debug.Log("No Cell at Remove attempt location");
-        //    return null;
-        //}
-
-        Cell cell = cellMatrix[row][column];
-        cellMatrix[row][column] = null;
-
-
-
-        #region Collapse AABB and update boundaries
-        /*
-        #region Left
-        // If it is on the left Extreme
-        if (column == 0)
-        {
-            // Find a new entry for this row in the Left Boundary
-            for (int i = 0; i < cellMatrix[row].Count; i++)
+            cellList.Add(cell);
+            if (OnAddCell != null)
             {
-                leftBoundary[row] = cellMatrix[row][i];
-                if (leftBoundary[row] != null)
-                {
-                    break;
-                }
-            }
-
-            // Find the current left most point
-            int leftMost = right;
-            for (int i = 0; i < leftBoundary.Count; i++)
-            {
-                if(leftBoundary[i] != null && leftBoundary[i].GetGridPosition().x < leftMost)
-                {
-                    leftMost = leftBoundary[i].GetGridPosition().x;
-                }
-            }
-            
-            // Collapse till left most if necessary
-            while(left < leftMost)
-            {
-                RemoveColumnLeft();
+                OnAddCell(cell);
             }
         }
-        #endregion
-        #region Right
-        // If it is on the right Extreme
-        if (column == width)
-        {
-            // Find a new entry for this row in the Right Boundary
-            for (int i = cellMatrix[row].Count - 1; i >= 0; i--)
-            {
-                rightBoundary[row] = cellMatrix[row][i];
-                if (rightBoundary[row] != null)
-                {
-                    break;
-                }
-            }
-
-            // Find the current right most point
-            int rightMost = left;
-            for (int i = 0; i < rightBoundary.Count; i++)
-            {
-                if (rightBoundary[i] != null && rightBoundary[i].GetGridPosition().x > rightMost)
-                {
-                    rightMost = rightBoundary[i].GetGridPosition().x;
-                }
-            }
-
-            // Collapse till left most if necessary
-            while (right > rightMost)
-            {
-                RemoveColumnRight();
-            }
-        }
-        #endregion
-        // Recalculate in case columns got removed
-        row = cellPos.y - bottom;
-        column = cellPos.x - left;
-        #region Bottom
-        // If it is on the bottom Extreme
-        if (row == 0)
-        {
-            // Find a new entry for this column in the bottom Boundary
-            if (column >= 0 && column <= width)
-            {
-                for (int i = 0; i < cellMatrix.Count; i++)
-                {
-                    bottomBoundary[column] = cellMatrix[i][column];
-                    if (bottomBoundary[column] != null)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            // Find the current bottom most point
-            int bottomMost = top;
-            for (int i = 0; i < bottomBoundary.Count; i++)
-            {
-                if (bottomBoundary[i] != null && bottomBoundary[i].GetGridPosition().y < bottomMost)
-                {
-                    bottomMost = bottomBoundary[i].GetGridPosition().y;
-                }
-            }
-
-            // Collapse till bottom most if necessary
-            while (bottom < bottomMost)
-            {
-                RemoveRowBottom();
-            }
-        }
-        #endregion
-        #region Top
-        // If it is on the top Extreme
-        if (row == height)
-        {
-            // Find a new entry for this column in the top Boundary
-            if (column >= 0 && column <= width)
-            {
-                for (int i = cellMatrix.Count - 1; i >= 0; i--)
-                {
-                    topBoundary[column] = cellMatrix[i][column];
-                    if (topBoundary[column] != null)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            // Find the current top most point
-            int topMost = bottom;
-            for (int i = 0; i < topBoundary.Count; i++)
-            {
-                if (topBoundary[i] != null && topBoundary[i].GetGridPosition().y > topMost)
-                {
-                    topMost = topBoundary[i].GetGridPosition().y;
-                }
-            }
-
-            // Collapse till top most if necessary
-            while (top > topMost)
-            {
-                RemoveRowTop();
-            }
-        }
-        #endregion
-    */
-        #endregion
-        // Remove the cell from the cell list
-        cellList.Remove(cell);
-
-        // If this was the last one
-        if (cellList.Count == 0 && OnRemoveLastCell != null)
-        {
-            OnRemoveLastCell();
-        }
-        else
-        {
-            leftBoundary = new List<Cell>();
-            rightBoundary = new List<Cell>();
-            bottomBoundary = new List<Cell>();
-            topBoundary = new List<Cell>();
-
-            CreateShape(cellList);
-        }       
-        return cell;
+        Refresh();
+        CreateShape(cellList);
     }
 
     /// <summary>
@@ -585,6 +220,7 @@ public class Shape
     /// <returns></returns>
     public Cell RemoveCell(Cell cell)
     {
+        Refresh();
         cellList.Remove(cell);
         if (cellList.Count == 0 && OnRemoveLastCell != null)
         {
@@ -592,18 +228,33 @@ public class Shape
         }
         else
         {
-            leftBoundary.Clear();
-            rightBoundary.Clear();
-            bottomBoundary.Clear();
-            topBoundary.Clear();
-            cellMatrix.Clear();
-
             CreateShape(cellList);
         }
         return cell;
         //return RemoveCell(cell.GetGridPosition());
     }
 
+    /// <summary>
+    /// Remove a Cell by reference
+    /// </summary>
+    /// <param name="cell"></param>
+    /// <returns></returns>
+    public void RemoveCells(List<Cell> cells)
+    {
+        Refresh();
+        foreach (Cell cell in cells)
+        {
+            cellList.Remove(cell);
+        }
+        if (cellList.Count == 0 && OnRemoveLastCell != null)
+        {
+            OnRemoveLastCell();
+        }
+        else
+        {
+            CreateShape(cellList);
+        }
+    }
     /// <summary>
     /// Move the shape by a certain amount
     /// </summary>
@@ -647,3 +298,405 @@ public class Shape
         }
     }
 }
+
+//public Cell RemoveCell(Vector2Int cellPos)
+//{
+//    if(cellList.Count == 0)
+//    {
+//        Debug.Log("Shape is Empty");
+//        return null;
+//    }
+
+//    int row = cellPos.y - bottom;
+//    int column = cellPos.x - left;
+//    if(row < 0 || column < 0 || row >= cellMatrix.Count || column >= cellMatrix[row].Count)
+//    {
+//        Debug.Log("Remove Cell attempt not in AABB");
+//        return null;
+//    }
+//    //if(cellMatrix[row][column] == null)
+//    //{
+//    //    Debug.Log("No Cell at Remove attempt location");
+//    //    return null;
+//    //}
+
+//    Cell cell = cellMatrix[row][column];
+//    cellMatrix[row][column] = null;
+
+
+
+//    #region Collapse AABB and update boundaries
+//    /*
+//    #region Left
+//    // If it is on the left Extreme
+//    if (column == 0)
+//    {
+//        // Find a new entry for this row in the Left Boundary
+//        for (int i = 0; i < cellMatrix[row].Count; i++)
+//        {
+//            leftBoundary[row] = cellMatrix[row][i];
+//            if (leftBoundary[row] != null)
+//            {
+//                break;
+//            }
+//        }
+
+//        // Find the current left most point
+//        int leftMost = right;
+//        for (int i = 0; i < leftBoundary.Count; i++)
+//        {
+//            if(leftBoundary[i] != null && leftBoundary[i].GetGridPosition().x < leftMost)
+//            {
+//                leftMost = leftBoundary[i].GetGridPosition().x;
+//            }
+//        }
+
+//        // Collapse till left most if necessary
+//        while(left < leftMost)
+//        {
+//            RemoveColumnLeft();
+//        }
+//    }
+//    #endregion
+//    #region Right
+//    // If it is on the right Extreme
+//    if (column == width)
+//    {
+//        // Find a new entry for this row in the Right Boundary
+//        for (int i = cellMatrix[row].Count - 1; i >= 0; i--)
+//        {
+//            rightBoundary[row] = cellMatrix[row][i];
+//            if (rightBoundary[row] != null)
+//            {
+//                break;
+//            }
+//        }
+
+//        // Find the current right most point
+//        int rightMost = left;
+//        for (int i = 0; i < rightBoundary.Count; i++)
+//        {
+//            if (rightBoundary[i] != null && rightBoundary[i].GetGridPosition().x > rightMost)
+//            {
+//                rightMost = rightBoundary[i].GetGridPosition().x;
+//            }
+//        }
+
+//        // Collapse till left most if necessary
+//        while (right > rightMost)
+//        {
+//            RemoveColumnRight();
+//        }
+//    }
+//    #endregion
+//    // Recalculate in case columns got removed
+//    row = cellPos.y - bottom;
+//    column = cellPos.x - left;
+//    #region Bottom
+//    // If it is on the bottom Extreme
+//    if (row == 0)
+//    {
+//        // Find a new entry for this column in the bottom Boundary
+//        if (column >= 0 && column <= width)
+//        {
+//            for (int i = 0; i < cellMatrix.Count; i++)
+//            {
+//                bottomBoundary[column] = cellMatrix[i][column];
+//                if (bottomBoundary[column] != null)
+//                {
+//                    break;
+//                }
+//            }
+//        }
+
+//        // Find the current bottom most point
+//        int bottomMost = top;
+//        for (int i = 0; i < bottomBoundary.Count; i++)
+//        {
+//            if (bottomBoundary[i] != null && bottomBoundary[i].GetGridPosition().y < bottomMost)
+//            {
+//                bottomMost = bottomBoundary[i].GetGridPosition().y;
+//            }
+//        }
+
+//        // Collapse till bottom most if necessary
+//        while (bottom < bottomMost)
+//        {
+//            RemoveRowBottom();
+//        }
+//    }
+//    #endregion
+//    #region Top
+//    // If it is on the top Extreme
+//    if (row == height)
+//    {
+//        // Find a new entry for this column in the top Boundary
+//        if (column >= 0 && column <= width)
+//        {
+//            for (int i = cellMatrix.Count - 1; i >= 0; i--)
+//            {
+//                topBoundary[column] = cellMatrix[i][column];
+//                if (topBoundary[column] != null)
+//                {
+//                    break;
+//                }
+//            }
+//        }
+
+//        // Find the current top most point
+//        int topMost = bottom;
+//        for (int i = 0; i < topBoundary.Count; i++)
+//        {
+//            if (topBoundary[i] != null && topBoundary[i].GetGridPosition().y > topMost)
+//            {
+//                topMost = topBoundary[i].GetGridPosition().y;
+//            }
+//        }
+
+//        // Collapse till top most if necessary
+//        while (top > topMost)
+//        {
+//            RemoveRowTop();
+//        }
+//    }
+//    #endregion
+//*/
+//    #endregion
+//    // Remove the cell from the cell list
+//    cellList.Remove(cell);
+
+//    // If this was the last one
+//    if (cellList.Count == 0 && OnRemoveLastCell != null)
+//    {
+//        OnRemoveLastCell();
+//    }
+//    else
+//    {
+//        leftBoundary = new List<Cell>();
+//        rightBoundary = new List<Cell>();
+//        bottomBoundary = new List<Cell>();
+//        topBoundary = new List<Cell>();
+
+//        CreateShape(cellList);
+//    }       
+//    return cell;
+//}
+
+//public void AddCell(Cell cell)
+//{
+//    // If the shape is empty, just intialize with it
+//    if(cellMatrix.Count == 0)
+//    {
+//        CreateShape(new List<Cell>() { cell });
+//        return;
+//    }
+
+//    #region Extend AABB
+//    // Get offsets from the boundary to check if new cell is out of AABB bounds
+//    int bottomDelta = cell.GetGridPosition().y - bottom;
+//    int topDelta = cell.GetGridPosition().y - top;
+//    int leftDelta = cell.GetGridPosition().x - left;
+//    int rightDelta = cell.GetGridPosition().x - right;
+
+//    bool bottomExtreme = false;
+//    bool topExtreme = false;
+//    bool leftExtreme = false;
+//    bool rightExtreme = false;
+
+//    // Extend the AABB as necessary
+//    while (bottomDelta < 0)
+//    {
+//        AddRowBottom();
+//        bottomDelta++;
+//        bottomExtreme = true;
+//    }
+//    while (topDelta > 0)
+//    {
+//        AddRowTop();
+//        topDelta--;
+//        topExtreme = true;
+//    }
+//    while (leftDelta < 0)
+//    {
+//        AddColumnLeft();
+//        leftDelta++;
+//        leftExtreme = true;
+//    }
+//    while (rightDelta > 0)
+//    {
+//        AddColumnRight();
+//        rightDelta--;
+//        rightExtreme = true;
+//    }
+//    #endregion
+
+//    // Add the cell to the matrix
+//    cellMatrix[cell.GetGridPosition().y - bottom][cell.GetGridPosition().x - left] = cell;
+//    // Add the cell to the cell list
+//    cellList.Add(cell);
+
+//    #region Update Boundary
+//    // Update the boundaries as necessary, checking if the entry was newly added and hence null OR if it is a new cell over a existing one
+//    if (bottomBoundary[cell.GetGridPosition().x - left] == null || bottomExtreme)
+//    {
+//        bottomBoundary[cell.GetGridPosition().x - left] = cell;
+//    }
+//    if (topBoundary[cell.GetGridPosition().x - left] == null || topExtreme)
+//    {
+//        topBoundary[cell.GetGridPosition().x - left] = cell;
+//    }
+//    if (rightBoundary[cell.GetGridPosition().y - bottom] == null || rightExtreme)
+//    {
+//        rightBoundary[cell.GetGridPosition().y - bottom] = cell;
+//    }
+//    if (leftBoundary[cell.GetGridPosition().y - bottom] == null || leftExtreme)
+//    {
+//        leftBoundary[cell.GetGridPosition().y - bottom] = cell;
+//    }
+//    #endregion
+//}
+//void AddRowBottom()
+//{
+//    // Create new row in the matrix
+//    cellMatrix.Insert(0, new List<Cell>());
+//    // Fill up the new row
+//    for (int i = left; i <= right; i++)
+//    {
+//        cellMatrix[0].Add(null);
+//    }
+//    // Extend the Orthogonal boundaries
+//    leftBoundary.Insert(0, null);
+//    rightBoundary.Insert(0, null);
+//    // Lower the bottom
+//    bottom--;
+//    // Update AABB
+//    SetSecondaryParameters();
+//}
+
+//void AddRowTop()
+//{
+//    // Create new entry in the matrix
+//    cellMatrix.Add(new List<Cell>());
+//    // Fill up the new row
+//    for (int i = left; i <= right; i++)
+//    {
+//        cellMatrix[cellMatrix.Count - 1].Add(null);
+//    }
+//    // Extend the Orthogonal boundaries
+//    leftBoundary.Add(null);
+//    rightBoundary.Add(null);
+//    // Raise the top
+//    top++;
+//    // Update AABB
+//    SetSecondaryParameters();
+//}
+
+//void AddColumnLeft()
+//{
+//    // Create a new column entry on each row on the matrix
+//    foreach (List<Cell> row in cellMatrix)
+//    {
+//        row.Insert(0, null);
+//    }
+//    // Extend the Orthogonal boundaries
+//    bottomBoundary.Insert(0, null);
+//    topBoundary.Insert(0, null);
+//    // Pull left
+//    left--;
+//    // Update AABB
+//    SetSecondaryParameters();
+//}
+
+//void AddColumnRight()
+//{
+//    // Create a new column entry on each row on the matrix
+//    foreach (List<Cell> row in cellMatrix)
+//    {
+//        row.Add(null);
+//    }
+//    // Extend the Orthogonal boundaries
+//    bottomBoundary.Add(null);
+//    topBoundary.Add(null);
+//    // Push right
+//    right++;
+//    // Update AABB
+//    SetSecondaryParameters();
+//}
+
+//void RemoveRowBottom()
+//{
+//    if (cellMatrix.Count == 0)
+//    {
+//        Debug.Log("Can't remove bottom row, shape is empty");
+//        return;
+//    }
+//    // Remove the bottom-most row from the matrix
+//    cellMatrix.RemoveAt(0);
+//    // Collapse the Orthogonal boundaries
+//    leftBoundary.RemoveAt(0);
+//    rightBoundary.RemoveAt(0);
+//    // Raise the bottom
+//    bottom++;
+//    // Update AABB
+//    SetSecondaryParameters();
+//}
+
+//void RemoveRowTop()
+//{
+//    if (cellMatrix.Count == 0)
+//    {
+//        Debug.Log("Can't remove top row, shape is empty");
+//        return;
+//    }
+//    // Remove the top-most row from the matrix
+//    cellMatrix.RemoveAt(cellMatrix.Count - 1);
+//    // Collapse the Orthogonal boundaries
+//    leftBoundary.RemoveAt(leftBoundary.Count - 1);
+//    rightBoundary.RemoveAt(rightBoundary.Count - 1);
+//    // Lower the top
+//    top--;
+//    // Update AABB
+//    SetSecondaryParameters();
+//}
+
+//void RemoveColumnLeft()
+//{
+//    if (cellMatrix.Count == 0)
+//    {
+//        Debug.Log("Can't remove Left column, shape is empty");
+//        return;
+//    }
+//    // Remove the left column entry on each row on the matrix
+//    foreach (List<Cell> row in cellMatrix)
+//    {
+//        row.RemoveAt(0);
+//    }
+//    // Collapse the Orthogonal boundaries
+//    bottomBoundary.RemoveAt(0);
+//    topBoundary.RemoveAt(0);
+//    // Push left
+//    left++;
+//    // Update AABB
+//    SetSecondaryParameters();
+//}
+
+//void RemoveColumnRight()
+//{
+//    if (cellMatrix.Count == 0)
+//    {
+//        Debug.Log("Can't remove Right column, shape is empty");
+//        return;
+//    }
+//    // Remove the right column entry on each row on the matrix
+//    foreach (List<Cell> row in cellMatrix)
+//    {
+//        row.RemoveAt(row.Count - 1);
+//    }
+//    // Collapse the Orthogonal boundaries
+//    bottomBoundary.RemoveAt(bottomBoundary.Count - 1);
+//    topBoundary.RemoveAt(topBoundary.Count - 1);
+//    // Pull right
+//    right--;
+//    // Update AABB
+//    SetSecondaryParameters();
+//}

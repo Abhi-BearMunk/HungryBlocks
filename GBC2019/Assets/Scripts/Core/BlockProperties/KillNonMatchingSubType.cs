@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty, IPostTransformBlockProperty
+public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty, IPostTransformBlockProperty, IResetProperty
 {
 
     List<Cell> cellsToKill = new List<Cell>();
@@ -40,6 +40,11 @@ public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty,
                 cell.Kill();
             }
         }
+        cellsToKill.Clear();
+    }
+
+    public void Reset()
+    {
         cellsToKill.Clear();
     }
 }

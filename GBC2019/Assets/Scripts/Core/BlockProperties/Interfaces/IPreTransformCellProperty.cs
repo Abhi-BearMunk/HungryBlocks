@@ -4,5 +4,5 @@ using UnityEngine;
 
 public interface IPreTransformCellProperty
 {
-    void PreTransform(Cell cell, Vector2Int positionToCheck);
+    bool PreTransform(Cell cell, Vector2Int positionToCheck);
 }
