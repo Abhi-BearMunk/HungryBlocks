@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Block))]
-public class BlockMover : MonoBehaviour
+public class BlockMover : MonoBehaviour, IPausable
 {
-    public Vector2 velocity;
+    public float deltaTime = 1f;
+
+    private Vector2Int velocity;
+    private bool move = false;
+    private float timer = 0;
 
     [HideInInspector]
     public Block block;
@@ -19,24 +23,34 @@ public class BlockMover : MonoBehaviour
     }
 
     //Update is called once per frame
-    void Update()
+    public void OnUpdate()
     {
-        deltaPosition += velocity * Time.deltaTime;
-        if (deltaPosition.x >= 1 && block.Translate(1, 0))
+        if(move)
         {
-            deltaPosition.x = 0;
+            timer -= Time.deltaTime;
+            if(timer <= 0 && block.Translate(velocity))
+            {
+                timer = deltaTime * (Mathf.Abs(velocity.x) + Mathf.Abs(velocity.y));
+            }
         }
-        else if (deltaPosition.x <= -1 && block.Translate(-1, 0))
+    }
+
+    public void Translate(Vector2Int displacement)
+    {
+        if(displacement == velocity)
         {
-            deltaPosition.x = 0;
+            return;
         }
-        if (deltaPosition.y >= 1 && block.Translate(0, 1))
+        velocity = displacement;
+        if(displacement.sqrMagnitude == 0)
         {
-            deltaPosition.y = 0;
+            timer = 0;
         }
-        else if (deltaPosition.y <= -1 && block.Translate(0, -1))
-        {
-            deltaPosition.y = 0;
-        }
+        move = displacement.sqrMagnitude == 0 ? false : true;
+    }
+
+    public void Translate(int x, int y)
+    {
+        Translate(new Vector2Int(x, y));
     }
 }

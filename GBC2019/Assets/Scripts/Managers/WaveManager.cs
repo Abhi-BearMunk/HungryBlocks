@@ -46,10 +46,6 @@ public class WaveManager : MonoBehaviour
 
         //    spawnTimer = 0;
         //}
-        if(Input.GetKeyDown(KeyCode.R))
-        {
-            SceneManager.LoadScene(0);
-        }
     }
 
     public void InitiateWave()
@@ -58,9 +54,9 @@ public class WaveManager : MonoBehaviour
         //grid.CreateBlock(ShapeDictionary.shapeDefinitions[shape], new Vector2Int(0, 0), (Cell.CellType)(Random.Range(0, 4)));
 
         //grid.CreateBlock(ShapeDictionary.shapeDefinitions[shape], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() / 2), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 4)));
-
-        //SpawnAbunch();
-        SpawnColliding();
+        SpawnPlayer();
+        SpawnAbunch();
+        //SpawnColliding();
     }
 
     void SpawnWave()
@@ -74,11 +70,11 @@ public class WaveManager : MonoBehaviour
         Block block;
         for (int i = 0; i < initialNumber; i++)
         {
-            GameObject go = new GameObject("Block", typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(DestroyOnKill));
-            block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(Random.Range(4, grid.GetWidth() - 4), Random.Range(4, grid.GetHeight() - 4)), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
+            GameObject go = new GameObject("Block", typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController));
+            block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(Random.Range(10, grid.GetWidth() - 10), Random.Range(10, grid.GetHeight() - 10)), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
             block.gameObject.AddComponent<BlockMover>();
             //block.gameObject.AddComponent<GameObjectEntity>();
-            block.GetComponent<BlockMover>().velocity = new Vector2((float)Random.Range(-2.0f, 2.0f), (float)Random.Range(-2.0f, 2.0f));
+            block.GetComponent<BlockMover>().Translate(new Vector2Int(Random.Range(-1, 2), Random.Range(-1, 2)));
         }
     }
 
@@ -90,21 +86,46 @@ public class WaveManager : MonoBehaviour
         go = new GameObject("Block", typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill));
         block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(grid.GetWidth() - 60, grid.GetHeight() / 2), Block.CellType.Enemy, Block.CellSubType.R, go);
         block.gameObject.AddComponent<BlockMover>();
-        block.GetComponent<BlockMover>().velocity = new Vector2(-2f, 0);
+        block.GetComponent<AbsorbMatchingSubtype>().priority = 5;
+        block.GetComponent<AbsorbableByMatchingSubType>().priority = 5;
+        block.GetComponent<BlockMover>().Translate(-1, 0);
 
         go = new GameObject("Block", typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill));
         block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(60, grid.GetHeight() / 2), Block.CellType.Enemy, Block.CellSubType.R, go);
         block.gameObject.AddComponent<BlockMover>();
-        block.GetComponent<BlockMover>().velocity = new Vector2(2f, 0);
+        block.GetComponent<AbsorbMatchingSubtype>().priority = 1;
+        block.GetComponent<AbsorbableByMatchingSubType>().priority = 1;
+        block.GetComponent<BlockMover>().Translate(1, 0);
 
         go = new GameObject("Block", typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill));
         block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() - 40), Block.CellType.Enemy, Block.CellSubType.R, go);
         block.gameObject.AddComponent<BlockMover>();
-        block.GetComponent<BlockMover>().velocity = new Vector2(0, 2f);
+        block.GetComponent<AbsorbMatchingSubtype>().priority = 2;
+        block.GetComponent<AbsorbableByMatchingSubType>().priority = 2;
+        block.GetComponent<BlockMover>().Translate(0, 1);
 
         go = new GameObject("Block", typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill));
         block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(grid.GetWidth() / 2, 40), Block.CellType.Enemy, Block.CellSubType.R, go);
         block.gameObject.AddComponent<BlockMover>();
-        block.GetComponent<BlockMover>().velocity = new Vector2(0, -2f);
+        block.GetComponent<AbsorbMatchingSubtype>().priority = 3;
+        block.GetComponent<AbsorbableByMatchingSubType>().priority = 3;
+        block.GetComponent<BlockMover>().Translate(0, -1);
+    }
+
+    void SpawnPlayer()
+    {
+        Block block;
+        GameObject go;
+
+        go = new GameObject("Player", 
+                            typeof(PauseController),
+                            typeof(KillableByNonMatchingSubType), 
+                            typeof(KillNonMatchingSubType), 
+                            typeof(AbsorbMatchingSubtype), 
+                            typeof(BlockMover),
+                            typeof(MovementControl));
+        block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(grid.GetWidth() - 60, grid.GetHeight() / 2), Block.CellType.Enemy, Block.CellSubType.R, go);
+        block.GetComponent<AbsorbMatchingSubtype>().priority = 100;
+        block.GetComponent<BlockMover>().deltaTime = 0.1f;
     }
 }

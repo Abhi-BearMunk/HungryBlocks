@@ -8,15 +8,20 @@ public class LevelManager : MonoBehaviour
     //public GridVisualizer gridVisualizer;
     public WaveManager waveManager;
     // Start is called before the first frame update
+
+    public bool paused;
+
     void Start()
     {
         StartLevel();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        
+        if(Input.GetKeyDown(KeyCode.Escape))
+        {
+            paused = !paused;
+        }
     }
 
     void StartLevel()

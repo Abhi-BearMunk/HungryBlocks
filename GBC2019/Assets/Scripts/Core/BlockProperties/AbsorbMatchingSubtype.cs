@@ -23,9 +23,9 @@ public class AbsorbMatchingSubtype : MonoBehaviour, IPreTransformCellProperty, I
                     Debug.Log("Group Cell parent block null");
                     continue;
                 }
-                if (groupCell.GetParentBlock() != cell.GetParentBlock() && groupCell.GetParentBlock().GetBlockSubType() == cell.GetParentBlock().GetBlockSubType() 
-                    /*&& groupCell.GetParentBlock().GetComponent<AbsorbableByMatchingSubType>() 
-                    && groupCell.GetParentBlock().GetComponent<AbsorbableByMatchingSubType>().priority <= priority*/)
+                if (groupCell.GetParentBlock() != cell.GetParentBlock() && groupCell.GetParentBlock().GetBlockSubType() == cell.GetParentBlock().GetBlockSubType()
+                    && groupCell.GetParentBlock().GetComponent<AbsorbableByMatchingSubType>()
+                    && groupCell.GetParentBlock().GetComponent<AbsorbableByMatchingSubType>().priority <= priority)
                 {
                     if(!blocksToAbsorb.Contains(groupCell.GetParentBlock()))
                     {

@@ -105,7 +105,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5521206822059697998}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 16.576582, y: 24.99288, z: 115.579926}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 3718036131161495894}
@@ -124,6 +124,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c4d317c91506cc46b2b08d3d4cccbf1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gridPosition: {x: 0, y: 0}
   parentBlock: {fileID: 0}
   OnPlacedOnGrid:
     m_PersistentCalls:
@@ -219,7 +220,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cell: {fileID: 8722019568071155821}
   scaleFactor: 0.390625
-  moveLerp: 10
+  moveLerp: 20
   baseSprites:
   - {fileID: 21300000, guid: 6f76e0927672fe04e8ddca157aa929af, type: 3}
   - {fileID: 21300000, guid: f95e6243a4708db4f853a62b78331db9, type: 3}

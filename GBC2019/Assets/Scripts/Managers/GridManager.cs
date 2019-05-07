@@ -84,6 +84,7 @@ public class GridManager : MonoBehaviour
             cells.Add(tempCell);
         }
         block.CreateNewBlockShape(new Shape(cells));
+        block.RegisterProperties();
         block.SetPosition(position);
         blocks.Add(block);
         OnCreateBlock.Invoke(block);

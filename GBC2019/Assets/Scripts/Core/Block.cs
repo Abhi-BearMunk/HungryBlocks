@@ -13,6 +13,18 @@ public class Block : MonoBehaviour
     [SerializeField]
     private Shape shape;
 
+    // Properties
+    [SerializeField]
+    IResetProperty[] resetProperties;
+    [SerializeField]
+    IPreTransformCellProperty[] preTransformCellProperties;
+    [SerializeField]
+    IPreTransformBlockProperty[] preTransformBlockProperties;
+    [SerializeField]
+    IPostTransformCellProperty[] postTransformCellProperties;
+    [SerializeField]
+    IPostTransformBlockProperty[] postTransformBlockProperties;
+
     private void Awake()
     {
         // Attach this to a predefined object for scene management purposes if possible
@@ -20,7 +32,15 @@ public class Block : MonoBehaviour
         {
             transform.parent = GameObject.Find("Blocks").transform;
         }
-        
+    }
+
+    public void RegisterProperties()
+    {
+        resetProperties = GetComponents<IResetProperty>();
+        preTransformCellProperties = GetComponents<IPreTransformCellProperty>();
+        preTransformBlockProperties = GetComponents<IPreTransformBlockProperty>();
+        postTransformCellProperties = GetComponents<IPostTransformCellProperty>();
+        postTransformBlockProperties = GetComponents<IPostTransformBlockProperty>();
     }
 
     public void SetGrid(GridManager _grid)
@@ -73,20 +93,8 @@ public class Block : MonoBehaviour
     /// <returns>If the move was possible</returns>
     public bool Translate(Vector2Int move)
     {
-        //// Check if move is possible
-        //foreach(Cell cell in shape.cellList)
-        //{
-        //    foreach (ICheckBlockedProperty blockedChecker in GetComponents<ICheckBlockedProperty>())
-        //    {
-        //        if (blockedChecker.IsBlocked(cell.GetGridPosition() + move))
-        //        {
-        //            return false;
-        //        }
-        //    }
-        //}
-
         // Reset properties
-        foreach(IResetProperty reset in GetComponents<IResetProperty>())
+        foreach(IResetProperty reset in resetProperties)
         {
             reset.Reset();
         }
@@ -94,7 +102,7 @@ public class Block : MonoBehaviour
         // Pre-move per cell
         foreach (Cell cell in shape.cellList)
         {
-            foreach (IPreTransformCellProperty pre in GetComponents<IPreTransformCellProperty>())
+            foreach (IPreTransformCellProperty pre in preTransformCellProperties)
             {
                 if (!pre.PreTransform(cell, cell.GetGridPosition() + move))
                 {
@@ -104,7 +112,7 @@ public class Block : MonoBehaviour
         }
 
         // Pre-move
-        foreach (IPreTransformBlockProperty pre in GetComponents<IPreTransformBlockProperty>())
+        foreach (IPreTransformBlockProperty pre in preTransformBlockProperties)
         {
             if (!pre.PreTransform(move))
             {
@@ -118,14 +126,14 @@ public class Block : MonoBehaviour
         // Post-move per cell
         foreach (Cell cell in shape.cellList)
         {
-            foreach (IPostTransformCellProperty post in GetComponents<IPostTransformCellProperty>())
+            foreach (IPostTransformCellProperty post in postTransformCellProperties)
             {
                 post.PostTransform(cell);
             }
         }
 
         // Post-move
-        foreach (IPostTransformBlockProperty post in GetComponents<IPostTransformBlockProperty>())
+        foreach (IPostTransformBlockProperty post in postTransformBlockProperties)
         {
             post.PostTransform();
         }
@@ -178,7 +186,7 @@ public class Block : MonoBehaviour
                     if (groupCell.GetParentBlock() == this)
                     {
                         overlapping = true;
-                        overlappingCells.Add(groupCell);
+                        overlappingCells.Add(cell);
                         break;
                     }
                 }

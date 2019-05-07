@@ -12,6 +12,7 @@ using UnityEngine.Events;
 /// </remarks>
 public class Cell : MonoBehaviour
 {
+    [SerializeField]
     private Vector2Int gridPosition;
     [SerializeField]
     private Block parentBlock = null;
