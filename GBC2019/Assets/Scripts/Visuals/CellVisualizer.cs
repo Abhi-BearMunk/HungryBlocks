@@ -13,7 +13,7 @@ public class CellVisualizer : MonoBehaviour
 
     // HACK! This should be somewhere global
     public List<Sprite> baseSprites = new List<Sprite>();
-    private Dictionary<Block.CellSubType, Color> typeColors = new Dictionary<Block.CellSubType, Color>();
+    public static Dictionary<Block.CellSubType, Color> typeColors = new Dictionary<Block.CellSubType, Color>();
 
     // Graphic Objects
     public SpriteRenderer cellBase;
@@ -25,11 +25,14 @@ public class CellVisualizer : MonoBehaviour
     // Start is called before the first frame update
     void Awake()
     {
-        typeColors.Add(Block.CellSubType.Default, Color.white);
-        typeColors.Add(Block.CellSubType.R, Color.red);
-        typeColors.Add(Block.CellSubType.G, Color.green);
-        typeColors.Add(Block.CellSubType.B, Color.blue);
-        typeColors.Add(Block.CellSubType.Y, new Color(1,0.75f,0.016f,1));
+        if(typeColors.Count == 0)
+        {
+            typeColors.Add(Block.CellSubType.Default, Color.white);
+            typeColors.Add(Block.CellSubType.R, Color.red);
+            typeColors.Add(Block.CellSubType.G, Color.green);
+            typeColors.Add(Block.CellSubType.B, Color.blue);
+            typeColors.Add(Block.CellSubType.Y, new Color(1, 0.75f, 0.016f, 1));
+        }
 
         offset = new Vector2(0.5f, 0.5f);
 

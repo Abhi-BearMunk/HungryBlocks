@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class Block : MonoBehaviour
 {
@@ -24,6 +25,9 @@ public class Block : MonoBehaviour
     IPostTransformCellProperty[] postTransformCellProperties;
     [SerializeField]
     IPostTransformBlockProperty[] postTransformBlockProperties;
+
+    //Events
+    public UnityEvent OnSetSubType;
 
     private void Awake()
     {
@@ -79,6 +83,10 @@ public class Block : MonoBehaviour
     public void SetBlockSubType(CellSubType type)
     {
         blockSubType = type;
+        if (OnSetSubType != null)
+        {
+            OnSetSubType.Invoke();
+        }
     }
 
     public CellSubType GetBlockSubType()
@@ -154,6 +162,56 @@ public class Block : MonoBehaviour
     public bool SetPosition(int x, int y)
     {
         return SetPosition(new Vector2Int(x, y));
+    }
+
+    public bool Rotate(int direction)
+    {
+        // Reset properties
+        foreach (IResetProperty reset in resetProperties)
+        {
+            reset.Reset();
+        }
+
+        // Pre-move per cell
+        foreach (Cell cell in shape.cellList)
+        {
+            foreach (IPreTransformCellProperty pre in preTransformCellProperties)
+            {
+                if (!pre.PreTransform(cell, shape.RotateRelative(cell.GetGridPosition(), direction)))
+                {
+                    return false;
+                }
+            }
+        }
+
+        // Pre-move
+        foreach (IPreTransformBlockProperty pre in preTransformBlockProperties)
+        {
+            if (!pre.PreTransform(new Vector2Int(0, 0)))
+            {
+                return false;
+            }
+        }
+
+        // Move
+        shape.Rotate(direction);
+
+        // Post-move per cell
+        foreach (Cell cell in shape.cellList)
+        {
+            foreach (IPostTransformCellProperty post in postTransformCellProperties)
+            {
+                post.PostTransform(cell);
+            }
+        }
+
+        // Post-move
+        foreach (IPostTransformBlockProperty post in postTransformBlockProperties)
+        {
+            post.PostTransform();
+        }
+
+        return true;
     }
 
     private void UpdatePositionUsingShapeAABB()

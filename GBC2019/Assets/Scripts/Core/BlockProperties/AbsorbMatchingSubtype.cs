@@ -2,13 +2,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(AbsorbData))]
 public class AbsorbMatchingSubtype : MonoBehaviour, IPreTransformCellProperty, IPreTransformBlockProperty, IResetProperty //, IPreTransformCellProperty to detect blocks, IPreTransformBlockProperty tomove these blocks in the same direction, IPostTransformBlockProperty to add these blocks
 {
-    public uint priority;
-
     private List<Block> blocksToAbsorb = new List<Block>();
 
-    CellGroup group;
+    private CellGroup group;
 
     public bool PreTransform(Cell cell, Vector2Int pos)
     {
@@ -25,7 +24,9 @@ public class AbsorbMatchingSubtype : MonoBehaviour, IPreTransformCellProperty, I
                 }
                 if (groupCell.GetParentBlock() != cell.GetParentBlock() && groupCell.GetParentBlock().GetBlockSubType() == cell.GetParentBlock().GetBlockSubType()
                     && groupCell.GetParentBlock().GetComponent<AbsorbableByMatchingSubType>()
-                    && groupCell.GetParentBlock().GetComponent<AbsorbableByMatchingSubType>().priority <= priority)
+                    && groupCell.GetParentBlock().GetComponent<AbsorbData>()
+                    && groupCell.GetParentBlock().GetComponent<AbsorbData>().priority <= GetComponent<AbsorbData>().priority
+                    && !GetComponent<AbsorbData>().ignoreTypes.Contains(groupCell.GetParentBlock().GetComponent<AbsorbData>().absorbType))
                 {
                     if(!blocksToAbsorb.Contains(groupCell.GetParentBlock()))
                     {

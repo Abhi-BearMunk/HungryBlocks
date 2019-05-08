@@ -5,7 +5,7 @@ using UnityEngine;
 [RequireComponent(typeof(Block))]
 public class BlockMover : MonoBehaviour, IPausable
 {
-    public float deltaTime = 1f;
+    public float deltaTime = 0.8f;
 
     private Vector2Int velocity;
     private bool move = false;

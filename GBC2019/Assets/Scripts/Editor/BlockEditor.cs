@@ -16,22 +16,25 @@ public class BlockEditor : Editor
         style.alignment = TextAnchor.MiddleCenter;
         style.fontSize = 10;
 
-        for (int column = block.GetShape().left; column <= block.GetShape().right; column++)
+        if (block.GetGrid())
         {
-            for (int row = block.GetShape().bottom; row <= block.GetShape().top; row++)
+            for (int column = block.GetShape().left; column <= block.GetShape().right; column++)
             {
-                CellGroup group = block.GetGrid().GetCellGroup(row, column);
-                if (block != null && group != null && group.cells != null)
+                for (int row = block.GetShape().bottom; row <= block.GetShape().top; row++)
                 {
-                    verts = new Vector3[]
+                    CellGroup group = block.GetGrid().GetCellGroup(row, column);
+                    if (block != null && group != null && group.cells != null)
                     {
+                        verts = new Vector3[]
+                        {
                         (column * Vector3.right + row * Vector3.up) * block.GetGrid().unitLength + block.GetGrid().origin,
                         (column * Vector3.right + (row + 1) * Vector3.up) * block.GetGrid().unitLength + block.GetGrid().origin,
                         ((column + 1) * Vector3.right + (row + 1) * Vector3.up) * block.GetGrid().unitLength + block.GetGrid().origin,
                         ((column + 1) * Vector3.right + row * Vector3.up) * block.GetGrid().unitLength + block.GetGrid().origin
-                     };
-                    Handles.DrawSolidRectangleWithOutline(verts, new Color(0.5f, 0.5f, 0.5f, 0.5f), new Color(0, 0, 0, 1));
-                    Handles.Label(((group.id + 0.5f) * Vector3.right + (row + 0.75f) * Vector3.up) * block.GetGrid().unitLength + block.GetGrid().origin, group.cells.Count.ToString(), style);
+                         };
+                        Handles.DrawSolidRectangleWithOutline(verts, new Color(0.5f, 0.5f, 0.5f, 0.5f), new Color(0, 0, 0, 1));
+                        Handles.Label(((group.id + 0.5f) * Vector3.right + (row + 0.75f) * Vector3.up) * block.GetGrid().unitLength + block.GetGrid().origin, group.cells.Count.ToString(), style);
+                    }
                 }
             }
         }

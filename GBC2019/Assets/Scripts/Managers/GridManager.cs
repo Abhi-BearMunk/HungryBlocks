@@ -69,7 +69,7 @@ public class GridManager : MonoBehaviour
         Cell tempCell;
         foreach (Vector2Int pos in shapeDefinition)
         {
-            temp = Instantiate(cellPrefab);
+            temp = Instantiate(cellPrefab, (Vector3)((Vector2)(pos + position) * unitLength) + origin, Quaternion.identity);
             if (!temp.GetComponent<Cell>())
             {
                 temp.AddComponent<Cell>();

@@ -46,6 +46,7 @@ public class Shape
     public delegate void Callback();
     public Callback OnSetSecondaryParameters;
     public Callback OnTranslate;
+    public Callback OnRotate;
     public Callback OnRemoveLastCell;
     public delegate void CellCallback(Cell cell);
     public CellCallback OnAddCell;
@@ -282,6 +283,34 @@ public class Shape
         }
     }
 
+    /// <summary>
+    /// Rotate the shape by a certain amount
+    /// </summary>
+    /// <param name="move">the delta of the translation</param>
+    public void Rotate(int direction)
+    {
+        if (direction == 0)
+        {
+            return;
+        }
+        Refresh();
+        direction = (int)Mathf.Sign(direction);
+        foreach (Cell cell in cellList)
+        {
+            if (cell != null)
+            {
+                Vector2Int delta = cell.GetGridPosition() - aabbCenter;
+                Vector2Int newPos = aabbCenter + new Vector2Int(delta.y * direction, -delta.x * direction);
+                cell.SetGridPosition(newPos);
+            }
+        }
+        CreateShape(cellList);
+        if (OnRotate != null)
+        {
+            OnRotate();
+        }
+    }
+
     void SetSecondaryParameters()
     {
         bottomLeft = new Vector2Int(left, bottom);
@@ -296,6 +325,13 @@ public class Shape
         {
             OnSetSecondaryParameters();
         }
+    }
+
+    public Vector2Int RotateRelative(Vector2Int target, int direction)
+    {
+        direction = (int)Mathf.Sign(direction);
+        Vector2Int delta = target - aabbCenter;
+        return aabbCenter + new Vector2Int(delta.y * direction, -delta.x * direction);
     }
 }
 

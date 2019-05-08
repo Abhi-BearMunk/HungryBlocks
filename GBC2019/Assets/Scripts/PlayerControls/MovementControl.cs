@@ -7,9 +7,11 @@ public class MovementControl : MonoBehaviour, IPausable
 {
     public BlockMover block;
     public float speed = 10;
-    public float deadZone = 0.4f;
+    public float deadZone = 0.38f;
     public string lHorizontal = "LHorizontal1";
     public string lVertical = "LVertical1";
+    public string rotateLeft = "RotateRight1";
+    public string rotateRight = "RotateLeft1";
 
     Vector2 lastVel;
     // Start is called before the first frame update
@@ -25,5 +27,19 @@ public class MovementControl : MonoBehaviour, IPausable
         //move.Normalize();
         Vector2Int moveInt = new Vector2Int(Mathf.Abs(move.x) > deadZone ? (int)Mathf.Sign(move.x) : 0, Mathf.Abs(move.y) > deadZone ? (int)Mathf.Sign(move.y) : 0);
         block.Translate(moveInt);
+        if(Input.GetButtonDown(rotateRight))
+        {
+            while(!GetComponent<Block>().Rotate(1))
+            {
+
+            }
+        }
+        if (Input.GetButtonDown(rotateLeft))
+        {
+            while (!GetComponent<Block>().Rotate(-1))
+            {
+
+            }
+        }
     }
 }
