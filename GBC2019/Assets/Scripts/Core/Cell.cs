@@ -71,6 +71,6 @@ public class Cell : MonoBehaviour
         parentBlock.GetGrid().RemoveCell(gridPosition, this);
         parentBlock.GetShape().RemoveCell(this);
         OnKill.Invoke();
-        //Destroy(this);
+        Destroy(this);
     }
 }

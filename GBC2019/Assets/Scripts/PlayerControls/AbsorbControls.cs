@@ -2,23 +2,23 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class AbsorbControls : MonoBehaviour
+public class AbsorbControls : MonoBehaviour, IPausable
 {
     public string yellow = "Yellow1";
     public string red = "Red1";
     public string blue = "Blue1";
     public string green = "Green1";
 
-    AbsorbCells absorbCells;
+    PluckCellsInRange absorbCells;
 
     // Start is called before the first frame update
     void Start()
     {
-        absorbCells = GetComponent<AbsorbCells>();
+        absorbCells = GetComponent<PluckCellsInRange>();
     }
 
     // Update is called once per frame
-    void Update()
+    public void OnUpdate()
     {
         if(Input.GetButtonDown(yellow) && absorbCells != null)
         {

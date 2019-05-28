@@ -758,7 +758,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   grid: {fileID: 1641706914}
-  initialNumber: 500
+  initialNumber: 1000
   spawnTime: 5
   playerObject: {fileID: 1791536709}
   shape: 5
@@ -3555,6 +3555,12 @@ GameObject:
   - component: {fileID: 1791536710}
   - component: {fileID: 1791536719}
   - component: {fileID: 1791536720}
+  - component: {fileID: 1791536721}
+  - component: {fileID: 1791536723}
+  - component: {fileID: 1791536722}
+  - component: {fileID: 1791536724}
+  - component: {fileID: 1791536725}
+  - component: {fileID: 1791536726}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -3735,6 +3741,110 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   absorbType: P1Bullet
   bulletDeltaTime: 0.01
+--- !u!114 &1791536721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1791536709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f9e59a62cb836d4ca5a8244464a12c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  yellow: Yellow1
+  red: Red1
+  blue: Blue1
+  green: Green1
+--- !u!114 &1791536722
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1791536709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fc5699306ec90247991934f220bbc08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  OnAbsorb:
+    m_PersistentCalls:
+      m_Calls: []
+    m_TypeName: UnityEngine.Events.UnityEvent, UnityEngine.CoreModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+  range: 5
+--- !u!114 &1791536723
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1791536709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce2a443557430ea4fb3d2c701ff8deb8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1791536724
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1791536709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b87315458548a004a821a3390d2f9576, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  OnWeaponChange:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 1791536710}
+        m_MethodName: SetNewWeapon
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_TypeName: WeaponChangeEvent, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+--- !u!114 &1791536725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1791536709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 259f477d821b5ae48bb709ec7a52171d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  absorbType: P1Bullet
+  bulletDeltaTime: 0.02
+  explosionEffectPrefab: {fileID: 1892078723244562, guid: 46876a2780737ec45a19d62f88e5ce56,
+    type: 3}
+--- !u!114 &1791536726
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1791536709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e958c350d0ab2924692cfe920ebecacc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  laserEffectPrefab: {fileID: 4886639346495688671, guid: 7e3c3c99c89446b45986f36706e4f13a,
+    type: 3}
 --- !u!1 &1819865270
 GameObject:
   m_ObjectHideFlags: 0

@@ -11,6 +11,8 @@ public class BlockEditor : Editor
 
             Vector3[] verts;
 
+       
+
         // Draw Occupancy
         GUIStyle style = new GUIStyle();
         style.alignment = TextAnchor.MiddleCenter;
@@ -97,6 +99,45 @@ public class BlockEditor : Editor
                     cell.transform.position - block.GetGrid().unitLength / 2 * Vector3.up - block.GetGrid().unitLength / 2 * Vector3.right
                 };
                 Handles.DrawSolidRectangleWithOutline(verts, Color.green * new Color(1, 1, 1, 0.7f), Color.green);
+            }
+        }
+
+        if (block.GetGrid())
+        {
+            Vector3 comPos1 = (Vector3)(block.GetShape().centerOfMassCell.GetGridPosition() + new Vector2(0.5f, 0.5f)) * block.GetGrid().unitLength + block.GetGrid().origin;
+            Vector3 comPos2 = (Vector3)(block.GetShape().centerOfMassAbsolute + (Vector2)block.GetShape().bottomLeft + new Vector2(0.5f, 0.5f)) * block.GetGrid().unitLength + block.GetGrid().origin;
+            verts = new Vector3[]
+                        {
+                        comPos1 + new Vector3(0.1f, 0.1f),
+                         comPos1 + new Vector3(-0.1f, 0.1f),
+                          comPos1 + new Vector3(-0.1f, -0.1f),
+                           comPos1 + new Vector3(0.1f, -0.1f)
+                         };
+            Handles.DrawSolidRectangleWithOutline(verts, Color.black, Color.black);
+
+            verts = new Vector3[]
+                        {
+                        comPos2 + new Vector3(0.1f, 0.1f),
+                         comPos2 + new Vector3(-0.1f, 0.1f),
+                          comPos2 + new Vector3(-0.1f, -0.1f),
+                           comPos2 + new Vector3(0.1f, -0.1f)
+                         };
+            Handles.DrawSolidRectangleWithOutline(verts, Color.red, Color.red);
+
+
+            foreach (Cell cell in block.GetShape().ConnectedCells())
+            {
+                if (cell != null)
+                {
+                    verts = new Vector3[]
+                    {
+                    cell.transform.position + new Vector3(1, 1) * (block.GetGrid().unitLength / 1.4f),
+                    cell.transform.position + new Vector3(-1, 1) * (block.GetGrid().unitLength / 1.4f),
+                    cell.transform.position + new Vector3(-1, -1) * (block.GetGrid().unitLength / 1.4f),
+                    cell.transform.position + new Vector3(1, -1) * (block.GetGrid().unitLength / 1.4f)
+                    };
+                    Handles.DrawSolidRectangleWithOutline(verts, Color.cyan * new Color(1, 1, 1, 0.7f), Color.cyan);
+                }
             }
         }
     }

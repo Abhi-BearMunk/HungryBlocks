@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ShootControls : MonoBehaviour
+public class ShootControls : MonoBehaviour, IPausable
 {
     public string rHorizontal = "RHorizontal1";
     public string rVertical = "RVertical1";
@@ -11,7 +11,7 @@ public class ShootControls : MonoBehaviour
 
     private Dictionary<Block.CellSubType, Color> typeColors = new Dictionary<Block.CellSubType, Color>();
     private float deadZone = 0.38f;
-    private Weapon weapon;
+    private IWeapon weapon;
     private bool shotFired;
 
     Block block;
@@ -19,11 +19,11 @@ public class ShootControls : MonoBehaviour
     void Start()
     {
         block = GetComponent<Block>();
-        weapon = GetComponent<Weapon>();
+        weapon = GetComponent<GrenadeLauncher>();
     }
 
     // Update is called once per frame
-    void Update()
+    public void OnUpdate()
     {
         Vector2 direction = new Vector2(Input.GetAxis(rHorizontal), Input.GetAxis(rVertical));
         direction.Normalize();
@@ -43,7 +43,7 @@ public class ShootControls : MonoBehaviour
             line.SetPosition(1, (Vector3)((current + new Vector2(0.5f * Mathf.Abs(directionInt.y), 0.5f * Mathf.Abs(directionInt.x))) * block.GetGrid().unitLength) + block.GetGrid().origin - Vector3.forward * 5);
 
             // Shoot
-            if(Input.GetAxis(shoot) > deadZone && !shotFired)
+            if (Input.GetAxis(shoot) > deadZone && !shotFired)
             {
                 weapon.Shoot(directionInt);
                 shotFired = true;
@@ -90,5 +90,10 @@ public class ShootControls : MonoBehaviour
         typeColors.Add(Block.CellSubType.Y, Color.yellow);
         line.materials[0].SetColor("_Color", typeColors[block.GetBlockSubType()]);
         line.materials[0].SetColor("_EmissionColor", typeColors[block.GetBlockSubType()]);
+    }
+
+    public void SetNewWeapon(IWeapon _weapon)
+    {
+        weapon = _weapon;
     }
 }

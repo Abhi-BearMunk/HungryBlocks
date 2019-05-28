@@ -2,13 +2,20 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class KillableByNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty, IPostTransformBlockProperty, IResetProperty
+public class KillableByNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty, IPostTransformBlockProperty, IResetProperty, IRegisterProperty
 {
+    Block block;
     List<Cell> cellsToKill = new List<Cell>();
+    CellGroup group;
+
+    public void Register(Block _block)
+    {
+        block = _block;
+    }
 
     public void PostTransform(Cell cell)
     {
-        CellGroup group = GetComponent<Block>().GetGrid().GetCellGroup(cell.GetGridPosition());
+        group = block.GetGrid().GetCellGroup(cell.GetGridPosition());
         if (group != null && group.cells.Count > 1)
         {
             foreach (Cell groupCell in group.cells)
@@ -19,7 +26,7 @@ public class KillableByNonMatchingSubType : MonoBehaviour, IPostTransformCellPro
                     Debug.Log("Group Cell null");
                     continue;
                 }
-                if (groupCell != cell && groupCell.GetParentBlock().GetComponent<KillNonMatchingSubType>() && groupCell.GetParentBlock().GetBlockSubType() != cell.GetParentBlock().GetBlockSubType())
+                if (groupCell != cell && groupCell.GetParentBlock().killNonMatchingSubType && groupCell.GetParentBlock().GetBlockSubType() != cell.GetParentBlock().GetBlockSubType())
                 {
                     if (!cellsToKill.Contains(cell))
                     {
@@ -40,10 +47,14 @@ public class KillableByNonMatchingSubType : MonoBehaviour, IPostTransformCellPro
             }
         }
         cellsToKill.Clear();
+
+
+        block.KillDisconnectedCells();
     }
 
     public void Reset()
     {
         cellsToKill.Clear();
     }
+
 }

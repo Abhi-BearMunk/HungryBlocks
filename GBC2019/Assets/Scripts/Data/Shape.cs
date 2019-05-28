@@ -14,7 +14,7 @@ using System.Linq;
 public class Shape
 {
     // A 2D array of cells as a List of Cell Rows
-    List<List<Cell>> cellMatrix = new List<List<Cell>>();
+    public List<List<Cell>> cellMatrix { get; private set; }
     /// <summary>
     /// An unordered list of Cells
     /// </summary>
@@ -37,6 +37,7 @@ public class Shape
     public int height { get; private set; }
     public Vector2Int aabbCenter { get; private set; }
     public Vector2 aabbCenterAbsolute { get; private set; }
+    public Vector2 centerOfMassAbsolute { get; private set; }   
     // Boundaries (incl. corners)
     public List<Cell> leftBoundary { get; private set; }
     public List<Cell> rightBoundary { get; private set; }
@@ -50,24 +51,39 @@ public class Shape
     public Callback OnRemoveLastCell;
     public delegate void CellCallback(Cell cell);
     public CellCallback OnAddCell;
+    // Special Cell/ Cells
+    public Cell centerOfMassCell { get; private set; }
+    public List<Vector2Int> emptyLocations { get; private set; }
+    // Local variables
+    List<Cell> open = new List<Cell>();
+    List<Cell> closed = new List<Cell>();
+    List<Cell> alreadyChecked = new List<Cell>();
+    List<Cell> neighbours;
 
     public Shape()
     {
-        leftBoundary = new List<Cell>();
-        rightBoundary = new List<Cell>();
-        bottomBoundary = new List<Cell>();
-        topBoundary = new List<Cell>();
-        cellList = new List<Cell>();
+        InitializeLists(new List<Cell>());
     }
 
     public Shape(List<Cell> cells)
+    {
+        InitializeLists(cells);
+        CreateShape(cells);
+    }
+
+    /// <summary>
+    /// Initialize all the lists in this class
+    /// </summary>
+    /// <param name="cells"></param>
+    void InitializeLists(List<Cell> cells)
     {
         leftBoundary = new List<Cell>();
         rightBoundary = new List<Cell>();
         bottomBoundary = new List<Cell>();
         topBoundary = new List<Cell>();
         cellList = new List<Cell>(cells);
-        CreateShape(cells);
+        cellMatrix = new List<List<Cell>>();
+        emptyLocations = new List<Vector2Int>();
     }
 
     /// <summary>
@@ -108,6 +124,8 @@ public class Shape
         // A temp variable to store Cells during the upcoming loop
         Cell temp;
 
+        centerOfMassAbsolute = Vector2.zero;
+
         // Loop through rows
         for (int i = bottom; i <= top; i++)
         {
@@ -138,7 +156,7 @@ public class Shape
                         // Add to the matrix and make counter point to the next Cell
                         cellMatrix[i - bottom].Add(temp);
                         counter++;
-
+                        centerOfMassAbsolute += new Vector2(temp.GetGridPosition().x - left, temp.GetGridPosition().y - bottom);
                         // Find the effect of the newly added Cell on the boundaries
                         //
                         // Left Boundary : If this is the first non-null on this row, then it must be the left boundary
@@ -159,19 +177,31 @@ public class Shape
                         continue;
                     }
                 }
+
                 
                 // If there was no match or already assigned all cells, just add null
                 cellMatrix[i - bottom].Add(null);
+                emptyLocations.Add(new Vector2Int(j - left, i - bottom));
             }
         }
         #endregion
+        centerOfMassAbsolute /= cells.Count;
+        centerOfMassCell = cells[0];
+
+        foreach(Cell cell in cells)
+        {
+            if(Vector2.SqrMagnitude((Vector2)(cell.GetGridPosition() - bottomLeft) - centerOfMassAbsolute) < Vector2.SqrMagnitude((Vector2)(centerOfMassCell.GetGridPosition() - bottomLeft) - centerOfMassAbsolute))
+            {
+                centerOfMassCell = cell;
+            }
+        }
 
         // Update AABB
         SetSecondaryParameters();
     }
 
     /// <summary>
-    /// Clear all the lists 
+    /// Clear all the lists and set references to null
     /// </summary>
     void Refresh()
     {
@@ -180,6 +210,8 @@ public class Shape
         bottomBoundary.Clear();
         topBoundary.Clear();
         cellMatrix.Clear();
+        emptyLocations.Clear();
+        centerOfMassCell = null;
     }
 
     /// <summary>
@@ -284,9 +316,9 @@ public class Shape
     }
 
     /// <summary>
-    /// Rotate the shape by a certain amount
+    /// Rotate the block in the given direction
     /// </summary>
-    /// <param name="move">the delta of the translation</param>
+    /// <param name="direction"> +1 for clockwise, -1 for anti-clockwise; by 90 degrees</param>
     public void Rotate(int direction)
     {
         if (direction == 0)
@@ -311,7 +343,7 @@ public class Shape
         }
     }
 
-    void SetSecondaryParameters()
+    private void SetSecondaryParameters()
     {
         bottomLeft = new Vector2Int(left, bottom);
         topLeft = new Vector2Int(left, top);
@@ -327,11 +359,96 @@ public class Shape
         }
     }
 
+    /// <summary>
+    /// The result of rotating a target point on the grid about the center of this shape
+    /// </summary>
+    /// <param name="target"></param>
+    /// <param name="direction"></param>
+    /// <returns></returns>
     public Vector2Int RotateRelative(Vector2Int target, int direction)
     {
         direction = (int)Mathf.Sign(direction);
         Vector2Int delta = target - aabbCenter;
         return aabbCenter + new Vector2Int(delta.y * direction, -delta.x * direction);
+    }
+
+    /// <summary>
+    /// Check if a grid position is out of bounds of this shape's AABB
+    /// </summary>
+    /// <param name="pos"></param>
+    /// <returns></returns>
+    bool OutOfBounds(Vector2Int pos)
+    {
+        return pos.x < left || pos.x > right || pos.y < bottom || pos.y > top;
+    }
+
+    /// <summary>
+    /// Find the neighbouring Cells to a grid position which are within this shape
+    /// </summary>
+    /// <remarks>
+    /// Currently only checks 4 directions
+    /// </remarks>
+    /// <param name="pos"></param>
+    /// <returns></returns>
+    List<Cell> NeighboursInShape(Vector2Int pos)
+    {
+        List<Cell> ret = new List<Cell>();
+        Vector2Int[] directions = { new Vector2Int(-1,0), new Vector2Int(0, 1), new Vector2Int(1, 0), new Vector2Int(0, -1) };
+        foreach(Vector2Int dir in directions)
+        {
+            Vector2Int neighbourPos = pos + dir;
+            if (!OutOfBounds(neighbourPos) && cellMatrix[neighbourPos.y - bottom][neighbourPos.x - left] != null)
+            {
+                ret.Add(cellMatrix[neighbourPos.y - bottom][neighbourPos.x - left]);
+            }
+        }
+
+        return ret;
+    }
+
+    /// <summary>
+    /// A list of all cells connected to the center of mass by a valid path
+    /// </summary>
+    /// <returns></returns>
+    public List<Cell> ConnectedCells()
+    {
+        // If center of mass is null (or in other words cell list is empty),
+        if(centerOfMassCell == null)
+        {
+            Debug.Log("Center of mass cell not valid");
+            return new List<Cell>();
+        }
+        open.Clear();
+        closed.Clear();
+        alreadyChecked.Clear();
+        // Start with the center of mass cell
+        open.Add(centerOfMassCell);
+
+        // Untill we run out of neghbouring cells...
+        while (open.Count > 0)
+        {
+            // Pick the first cell from the open list
+            Cell cell = open[0];
+            // Check thge neighbours of this cell
+            neighbours = NeighboursInShape(cell.GetGridPosition());
+            foreach (Cell neighbour in neighbours)
+            {
+                // If the neighbour is in neither set, that means its untouched...
+                if (!closed.Contains(neighbour) && !open.Contains(neighbour))
+                {
+                    // So put it in open
+                    open.Add(neighbour);
+                }
+            }
+            // We are done with this cell...
+            // So remove it from open
+            open.Remove(cell);
+            // And put it in closed
+            closed.Add(cell);
+        }
+
+        // Evethying in closed is reachable from the center of mass
+        return closed;
     }
 }
 

@@ -2,14 +2,20 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty, IPostTransformBlockProperty, IResetProperty
+public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty, IPostTransformBlockProperty, IResetProperty, IRegisterProperty
 {
-
+    Block block;
     List<Cell> cellsToKill = new List<Cell>();
+    List<Block> blocksAffected = new List<Block>();
+
+    public void Register(Block _block)
+    {
+        block = _block;
+    }
 
     public void PostTransform(Cell cell)
     {
-        CellGroup group = GetComponent<Block>().GetGrid().GetCellGroup(cell.GetGridPosition());
+        CellGroup group = block.GetGrid().GetCellGroup(cell.GetGridPosition());
         if(group != null && group.cells.Count > 1)
         {
             foreach(Cell groupCell in group.cells)
@@ -20,7 +26,7 @@ public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty,
                     Debug.Log("Group Cell null");
                     continue;
                 }
-                if (groupCell != cell && groupCell.GetParentBlock().GetComponent<KillableByNonMatchingSubType>() && groupCell.GetParentBlock().GetBlockSubType() != cell.GetParentBlock().GetBlockSubType())
+                if (groupCell != cell && groupCell.GetParentBlock().killableByNonMatchingSubType && groupCell.GetParentBlock().GetBlockSubType() != cell.GetParentBlock().GetBlockSubType())
                 {
                     if(!cellsToKill.Contains(groupCell))
                     {
@@ -33,18 +39,30 @@ public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty,
 
     public void PostTransform()
     {
+        blocksAffected.Clear();
         foreach(Cell cell in cellsToKill)
         {
             if(cell != null)
             {
+                if (!blocksAffected.Contains(cell.GetParentBlock()))
+                {
+                    blocksAffected.Add(cell.GetParentBlock());
+                }
                 cell.Kill();
             }
         }
         cellsToKill.Clear();
+
+        foreach (Block block in blocksAffected)
+        {
+            block.KillDisconnectedCells();
+        }
+        blocksAffected.Clear();
     }
 
     public void Reset()
     {
         cellsToKill.Clear();
+        blocksAffected.Clear();
     }
 }

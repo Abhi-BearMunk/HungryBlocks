@@ -3,9 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(AbsorbData))]
-public class AbsorbableByMatchingSubType : MonoBehaviour, IPreTransformCellProperty // IBlockeProperty to prevent moving if absorbable but we are SURE that it is not the one doing the absorbing
+public class AbsorbableByMatchingSubType : MonoBehaviour, IPreTransformCellProperty, IRegisterProperty 
 {
+    private Block block;
     private CellGroup group;
+
+    public void Register(Block _block)
+    {
+        block = _block;
+    }
 
     public bool PreTransform(Cell cell, Vector2Int pos)
     {
@@ -21,12 +27,12 @@ public class AbsorbableByMatchingSubType : MonoBehaviour, IPreTransformCellPrope
                     continue;
                 }
                 if (groupCell.GetParentBlock() != cell.GetParentBlock() && groupCell.GetParentBlock().GetBlockSubType() == cell.GetParentBlock().GetBlockSubType()
-                    && groupCell.GetParentBlock().GetComponent<AbsorbMatchingSubtype>()
-                    && groupCell.GetParentBlock().GetComponent<AbsorbData>()
-                    && groupCell.GetParentBlock().GetComponent<AbsorbData>().priority >= GetComponent<AbsorbData>().priority
-                    && !GetComponent<AbsorbData>().ignoreTypes.Contains(groupCell.GetParentBlock().GetComponent<AbsorbData>().absorbType))
+                    && groupCell.GetParentBlock().absorbMatchingSubtype
+                    && groupCell.GetParentBlock().absorbData
+                    && groupCell.GetParentBlock().absorbData.priority >= block.absorbData.priority
+                    && !block.absorbData.ignoreTypes.Contains(groupCell.GetParentBlock().absorbData.absorbType))
                 {
-                    groupCell.GetParentBlock().Add(GetComponent<Block>());
+                    groupCell.GetParentBlock().Add(block);
                     return false;
                 }
             }

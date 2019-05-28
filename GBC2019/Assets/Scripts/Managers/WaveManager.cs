@@ -21,6 +21,7 @@ public class WaveManager : MonoBehaviour
     public GameObject playerObject;
 
     public ShapeDictionary.BlockShape shape;
+    int spawnPowerUp = 0;
     // Start is called before the first frame update
     void Start()
     {
@@ -34,6 +35,12 @@ public class WaveManager : MonoBehaviour
         if (spawnWave && spawnTimer <= 0)
         {
             Spawn8();
+            spawnPowerUp++;
+            if(spawnPowerUp > 5)
+            {
+                spawnPowerUp = 0;
+                SpawnPowerUp();
+            }
             spawnTimer = spawnTime;
         }
         //{
@@ -76,11 +83,12 @@ public class WaveManager : MonoBehaviour
         Block block;
         for (int i = 0; i < initialNumber; i++)
         {
-            GameObject go = new GameObject("Block", typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController), typeof(AbsorbData));
-            block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(Random.Range(10, grid.GetWidth() - 10), Random.Range(10, grid.GetHeight() - 10)), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
+            GameObject go = new GameObject("Block", typeof(Block), typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController), typeof(AbsorbData));
+            block = go.GetComponent<Block>();
             block.gameObject.AddComponent<BlockMover>();
             //block.gameObject.AddComponent<GameObjectEntity>();
             block.GetComponent<BlockMover>().Translate(new Vector2Int(Random.Range(-1, 2), Random.Range(-1, 2)));
+            grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(Random.Range(10, grid.GetWidth() - 10), Random.Range(10, grid.GetHeight() - 10)), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
         }
     }
 
@@ -129,7 +137,7 @@ public class WaveManager : MonoBehaviour
         Block block;
         GameObject go;
 
-        List<Vector2Int> shape = ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)];
+        List<Vector2Int> shape = ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, 8)];
         List<Block.CellSubType> permutation1 = SubTypePermutation();
         List<Block.CellSubType> permutation2 = SubTypePermutation();
 
@@ -137,13 +145,13 @@ public class WaveManager : MonoBehaviour
         {
             // Y
             go = new GameObject("Block", typeof(AbsorbData), typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController));
-            block = grid.CreateBlock(shape, new Vector2Int(grid.GetWidth() / 2 + (i <= 1 ? 1 : -1) * grid.GetWidth() / 4, grid.GetHeight() / 2 + (i % 2 == 0 ? 1 : -1) * (grid.GetHeight() / 2 + 4)), Block.CellType.Enemy, permutation1[i], go);
+            block = grid.CreateBlock(shape, new Vector2Int(Random.Range(-grid.GetWidth() / 8, grid.GetWidth() / 8) + grid.GetWidth() / 2 + (i <= 1 ? 1 : -1) * grid.GetWidth() / 4, grid.GetHeight() / 2 + (i % 2 == 0 ? 1 : -1) * (grid.GetHeight() / 2 + 4)), Block.CellType.Enemy, permutation1[i], go);
             block.gameObject.AddComponent<BlockMover>();
             block.GetComponent<BlockMover>().Translate(0, (i % 2 == 0 ? -1 : 1));
 
             // X
             go = new GameObject("Block", typeof(AbsorbData), typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController));
-            block = grid.CreateBlock(shape, new Vector2Int(grid.GetWidth() / 2 + (i % 2 == 0 ? 1 : -1) * (grid.GetWidth() / 2 + 5), grid.GetHeight() / 2 + (i <= 1 ? 1 : -1) * grid.GetHeight() / 4), Block.CellType.Enemy, permutation2[i], go);
+            block = grid.CreateBlock(shape, new Vector2Int(grid.GetWidth() / 2 + (i % 2 == 0 ? 1 : -1) * (grid.GetWidth() / 2 + 5), Random.Range(-grid.GetHeight() / 8, grid.GetHeight() / 8) + grid.GetHeight() / 2 + (i <= 1 ? 1 : -1) * grid.GetHeight() / 4), Block.CellType.Enemy, permutation2[i], go);
             block.gameObject.AddComponent<BlockMover>();
             block.GetComponent<BlockMover>().Translate((i % 2 == 0 ? -1 : 1), 0);
         }
@@ -162,8 +170,56 @@ public class WaveManager : MonoBehaviour
         //                    typeof(BlockMover),
         //                    typeof(MovementControl));
         go = playerObject;
-        block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() / 2), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
+        block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Dot], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() / 2), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
         block.GetComponent<AbsorbData>().priority = 100;
         block.GetComponent<BlockMover>().deltaTime = 0.1f;
+    }
+
+    void SpawnPowerUp()
+    {
+        GameObject go = new GameObject("Block", typeof(Block), typeof(DestroyOnKill), typeof(PauseController), typeof(PowerUp), typeof(Sparkle));
+        Block block = go.GetComponent<Block>();
+        block.gameObject.AddComponent<BlockMover>();
+        block.GetComponent<BlockMover>().deltaTime *= 2;
+        if(Random.Range(0, 1.0f) >= 0.5f)
+        {
+            block.GetComponent<PowerUp>().weaponType = typeof(Sniper);
+        }
+        else
+        {
+            block.GetComponent<PowerUp>().weaponType = typeof(GrenadeLauncher);
+        }
+
+        int dir = Random.Range(1, 5);
+        int shapeNo = Random.Range(0.0f, 100.0f) < 20 ? 10 : Random.Range(8, 10);
+        // Left
+        if (dir == 1)
+        {
+            block.GetComponent<BlockMover>().Translate(1, 0);
+            grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)shapeNo], new Vector2Int(-5, grid.GetHeight() / 2), Block.CellType.PowerUp, Block.CellSubType.Default, go);
+        }
+        // Right
+        else if (dir == 2)
+        {
+            block.GetComponent<BlockMover>().Translate(-1, 0);
+            grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)shapeNo], new Vector2Int(grid.GetWidth() + 5, grid.GetHeight() / 2), Block.CellType.PowerUp, Block.CellSubType.Default, go);
+            block.GetShape().Rotate(1);
+            block.GetShape().Rotate(1);
+        }
+        // Up
+        else if (dir == 3)
+        {
+            block.GetComponent<BlockMover>().Translate(0, -1);
+            grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)shapeNo], new Vector2Int(grid.GetWidth()  / 2, grid.GetHeight() + 5), Block.CellType.PowerUp, Block.CellSubType.Default, go);
+            block.GetShape().Rotate(1);
+        }
+        // Down
+        if (dir == 4)
+        {
+            block.GetComponent<BlockMover>().Translate(0, 1);
+            grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)shapeNo], new Vector2Int(grid.GetWidth() / 2, -5), Block.CellType.PowerUp, Block.CellSubType.Default, go);
+            block.GetShape().Rotate(-1);
+        }
+
     }
 }

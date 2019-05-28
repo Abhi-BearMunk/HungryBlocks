@@ -84,7 +84,6 @@ public class GridManager : MonoBehaviour
             cells.Add(tempCell);
         }
         block.CreateNewBlockShape(new Shape(cells));
-        block.RegisterProperties();
         block.SetPosition(position);
         blocks.Add(block);
         OnCreateBlock.Invoke(block);
@@ -147,10 +146,10 @@ public class GridManager : MonoBehaviour
     /// </summary>
     bool RemoveCell(int row, int column, Cell cell)
     {
-        //if(OutOfBounds(row, column))
-        //{
-        //    return false;
-        //}
+        if (OutOfBounds(row, column))
+        {
+            return false;
+        }
         return grid[row].RemoveCell(column, cell);
     }
 
@@ -176,5 +175,10 @@ public class GridManager : MonoBehaviour
     public bool OutOfBounds(Vector2Int position)
     {
         return position.x < 0 || position.x >= width || position.y < 0 || position.y >= height;
+    }
+
+    public Vector3 WorldPosition(Vector2Int gridPosition)
+    {
+        return origin + (new Vector3(gridPosition.x, gridPosition.y, 0) + new Vector3(0.5f, 0.5f, 0)) * unitLength;
     }
 }

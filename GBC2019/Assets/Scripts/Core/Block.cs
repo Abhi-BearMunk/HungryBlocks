@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
+/// <summary>
+/// A group of cells moving as one unit on a grid
+/// </summary>
 public class Block : MonoBehaviour
 {
-    public enum CellType { Player, Enemy };
+    public enum CellType { Player = 0, Enemy = 1, PowerUp = 2 };
     public enum CellSubType { Default, R, G, B, Y };
 
     private CellType blockType;
@@ -25,9 +28,24 @@ public class Block : MonoBehaviour
     IPostTransformCellProperty[] postTransformCellProperties;
     [SerializeField]
     IPostTransformBlockProperty[] postTransformBlockProperties;
+    [SerializeField]
+    IOnKillProperty[] onKillProperties;
+
+    // Property references
+    public AbsorbData absorbData { get; private set; }
+    public AbsorbMatchingSubtype absorbMatchingSubtype { get; private set; }
+    public AbsorbableByMatchingSubType absorbableByMatchingSubType { get; private set; }
+    public KillNonMatchingSubType killNonMatchingSubType { get; private set; }
+    public KillableByNonMatchingSubType killableByNonMatchingSubType { get; private set; }
 
     //Events
     public UnityEvent OnSetSubType;
+
+    // Initialize lists
+    List<Cell> cellsToAdd = new List<Cell>();
+    List<Cell> overlappingCells = new List<Cell>();
+    List<Cell> connected = new List<Cell>();
+    List<Cell> disconnected = new List<Cell>();
 
     private void Awake()
     {
@@ -38,13 +56,30 @@ public class Block : MonoBehaviour
         }
     }
 
-    public void RegisterProperties()
+    /// <summary>
+    /// Initializations on block creation
+    /// <remark>Don't depend on start / awake</remark>
+    /// </summary>
+    private void RegisterProperties()
     {
+        // arrays
         resetProperties = GetComponents<IResetProperty>();
         preTransformCellProperties = GetComponents<IPreTransformCellProperty>();
         preTransformBlockProperties = GetComponents<IPreTransformBlockProperty>();
         postTransformCellProperties = GetComponents<IPostTransformCellProperty>();
         postTransformBlockProperties = GetComponents<IPostTransformBlockProperty>();
+        onKillProperties = GetComponents<IOnKillProperty>();
+        // individuals
+        absorbData = GetComponent<AbsorbData>();
+        absorbMatchingSubtype = GetComponent<AbsorbMatchingSubtype>();
+        absorbableByMatchingSubType = GetComponent<AbsorbableByMatchingSubType>();
+        killNonMatchingSubType = GetComponent<KillNonMatchingSubType>();
+        killableByNonMatchingSubType = GetComponent<KillableByNonMatchingSubType>();
+        // Initialize
+        foreach(IRegisterProperty registerProperty in GetComponents<IRegisterProperty>())
+        {
+            registerProperty.Register(this);
+        }
     }
 
     public void SetGrid(GridManager _grid)
@@ -59,10 +94,16 @@ public class Block : MonoBehaviour
 
     public void CreateNewBlockShape(Shape _shape)
     {
+        // assign shape
         shape = _shape;
+
+        // assign shape callbacks
         shape.OnAddCell += SetCellParent;
         shape.OnSetSecondaryParameters += UpdatePositionUsingShapeAABB;
         shape.OnRemoveLastCell += Kill;
+
+        // Initialization
+        RegisterProperties();
     }
 
     public Shape GetShape()
@@ -149,21 +190,43 @@ public class Block : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Translate block in a given direction
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <returns></returns>
     public bool Translate(int x, int y)
     {
         return Translate(new Vector2Int(x, y));
     }
 
+    /// <summary>
+    /// Set block position
+    /// </summary>
+    /// <param name="position"></param>
+    /// <returns></returns>
     public bool SetPosition(Vector2Int position)
     {
         return Translate(position - shape.aabbCenter);
     }
 
+    /// <summary>
+    /// Set block position
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <returns></returns>
     public bool SetPosition(int x, int y)
     {
         return SetPosition(new Vector2Int(x, y));
     }
 
+    /// <summary>
+    /// Rotate the block
+    /// </summary>
+    /// <param name="direction"> +1 for clockwise, -1 for anti-clockwise; by 90 degrees</param>
+    /// <returns></returns>
     public bool Rotate(int direction)
     {
         // Reset properties
@@ -219,22 +282,25 @@ public class Block : MonoBehaviour
         transform.position = (shape.aabbCenterAbsolute +  new Vector2(0.5f, 0.5f)) * grid.unitLength;
     }
 
+    /// <summary>
+    /// Consume another block
+    /// </summary>
+    /// <param name="other"></param>
     public void Add(Block other)
     {
-        //if(other && other.GetComponent<BlockMover>())
-        //{
-        //    other.GetComponent<BlockMover>().velocity = GetComponent<BlockMover>().velocity;
-        //}
-        List<Cell> cellsToAdd = new List<Cell>();
-        List<Cell> overlappingCells = new List<Cell>();
+        // Clear the lists
+        cellsToAdd.Clear();
+        overlappingCells.Clear();
 
         CellGroup group;
         bool overlapping;
         Cell cell;
         
+        // Go through all of the other block's cells
         for (int i = other.GetShape().cellList.Count - 1; i >= 0; i--)
         {
             cell = other.GetShape().cellList[i];
+            // Check for overlaps
             overlapping = false;
             group = grid.GetCellGroup(cell.GetGridPosition());
             if (group != null && group.cells.Count > 1)
@@ -244,6 +310,7 @@ public class Block : MonoBehaviour
                     if (groupCell.GetParentBlock() == this)
                     {
                         overlapping = true;
+                        // If overlapping add to overlapping list
                         overlappingCells.Add(cell);
                         break;
                     }
@@ -252,30 +319,74 @@ public class Block : MonoBehaviour
 
             if (!overlapping)
             {
-                //other.GetShape().RemoveCell(cell);
+                // Otherwise add to the main list
                 cellsToAdd.Add(cell);
             }
         }
 
+        // Remove the main ones from other
         other.GetShape().RemoveCells(cellsToAdd);
+        // And add to this
         shape.AddCells(cellsToAdd);
-        //other.GetShape().RemoveCells(cellsToAdd);
         foreach (Cell overlap in overlappingCells)
         {
+            // Kill the overlapping cells
             overlap.Kill();
         }
+
+        // Clear the lists
+        cellsToAdd.Clear();
+        overlappingCells.Clear();
     }
 
-    void SetCellParent(Cell cell)
+    private void SetCellParent(Cell cell)
     {
         cell.SetParentBlock(this);
     }
-    
-    void Kill()
+
+    private void Kill()
     {
-        foreach(IOnKillProperty onKillProperty in GetComponents<IOnKillProperty>())
+        foreach(IOnKillProperty onKillProperty in onKillProperties)
         {
             onKillProperty.OnKill();
         }
+    }
+
+    /// <summary>
+    /// Kill cells not connected by a valid path to the shape's center of mass
+    /// </summary>
+    public void KillDisconnectedCells()
+    {
+        connected = shape.ConnectedCells();
+        disconnected.Clear();
+
+        foreach (Cell cell in shape.cellList)
+        {
+            if (cell != null && !connected.Contains(cell))
+            {
+                disconnected.Add(cell);
+            }
+        }
+
+        foreach (Cell cell in disconnected)
+        {
+            if (cell != null)
+            {
+                cell.Kill();
+            }
+        }
+
+        connected.Clear();
+        disconnected.Clear();
+    }
+
+    /// <summary>
+    /// Destroy this block and all the cells
+    /// </summary>
+    public void Annhilate()
+    {
+        // Just remove all the cells from the shape
+        List<Cell> cellList = new List<Cell>(shape.cellList);
+        shape.RemoveCells(cellList);
     }
 }

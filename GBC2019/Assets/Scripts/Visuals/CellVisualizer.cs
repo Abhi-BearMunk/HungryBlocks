@@ -13,15 +13,23 @@ public class CellVisualizer : MonoBehaviour
 
     // HACK! This should be somewhere global
     public List<Sprite> baseSprites = new List<Sprite>();
+    // HACK! Write custom inspector in some global class
+    public List<Sprite> typeSprites = new List<Sprite>();
     public static Dictionary<Block.CellSubType, Color> typeColors = new Dictionary<Block.CellSubType, Color>();
 
     // Graphic Objects
     public SpriteRenderer cellBase;
+    public SpriteRenderer cellGlow;
     public GameObject arrow;
 
     private Vector2 offset;
     [HideInInspector]
     public Vector3 pos;
+
+    private bool scrollTexture = false;
+    public float scrollSpeed = 1;
+    public float glowH = 0;
+    int glowDir = -1;
     // Start is called before the first frame update
     void Awake()
     {
@@ -37,12 +45,22 @@ public class CellVisualizer : MonoBehaviour
         offset = new Vector2(0.5f, 0.5f);
 
         // TODO: Currently all cells draw from a pool of sprites
-        cellBase.sprite = baseSprites[Random.Range(0, baseSprites.Count - 1)];
+        //cellBase.sprite = baseSprites[Random.Range(0, baseSprites.Count - 1)];
     }
 
     public void SetScale()
     {
         transform.localScale = scaleFactor * cell.GetParentBlock().GetGrid().unitLength * new Vector3(1, 1, 1);
+    }
+
+    public void SetCellType()
+    {
+        int type = (int)cell.GetParentBlock().GetBlockType();
+        cellBase.sprite = typeSprites[type];
+        //if(cell.GetParentBlock().GetBlockType() == Block.CellType.PowerUp)
+        //{
+        //    cellGlow.enabled = true;
+        //}
     }
 
     public void SetCellSubType()
@@ -69,6 +87,22 @@ public class CellVisualizer : MonoBehaviour
     private void Update()
     {
         transform.position = Vector3.Lerp(transform.position, pos, moveLerp * Time.deltaTime);
+        if (cell.GetParentBlock().GetBlockType() == Block.CellType.PowerUp)
+        {
+
+            glowH += glowDir * scrollSpeed * Time.deltaTime;
+            if (glowH >= 1)
+            {
+                glowDir = -1;
+                glowH = 1;
+            }
+            if (glowH <= 0)
+            {
+                glowDir = 1;
+                glowH = 0;
+            }
+            cellGlow.color = Color.HSVToRGB(glowH, 1, 1);
+        }
     }
 
     IEnumerator MoveLerp()
@@ -84,7 +118,16 @@ public class CellVisualizer : MonoBehaviour
     public void Kill()
     {
         //cellBase.color = cellBase.color * new Color(0.5f, 0.5f, 0.5f, 0.1f);
-        StartCoroutine(KillSequence());
+        if(cell.GetParentBlock().GetBlockType() == Block.CellType.PowerUp)
+        {
+            StartCoroutine(KillSequence2());
+
+        }
+        else
+        {
+            //pos += 0.5f * (Vector3)Random.insideUnitCircle;
+            StartCoroutine(KillSequence());
+        }
     }
 
     IEnumerator KillSequence()
@@ -98,6 +141,25 @@ public class CellVisualizer : MonoBehaviour
             scale -= 0.8f * Time.deltaTime;
             cellBase.transform.localScale = new Vector3(1, 1, 1) * scale;
             cellBase.transform.Rotate(0, 0, 360 * Time.deltaTime);
+            //pos = transform.position + direction;
+            yield return new WaitForEndOfFrame();
+        }
+        Destroy(gameObject);
+    }
+
+    IEnumerator KillSequence2()
+    {
+        cellGlow.enabled = false;
+        float scale = 0.6f;
+        cellBase.transform.localScale = new Vector3(1, 1, 1) * scale;
+        yield return new WaitForSeconds(0.35f);
+        while (scale < 2)
+        {
+            scale += 1.5f * Time.deltaTime;
+            cellBase.transform.localScale = new Vector3(1, 1, 1) * scale;
+            Color col = cellBase.color;
+            col.a = 2 - scale;
+            cellBase.color = col;
             //pos = transform.position + direction;
             yield return new WaitForEndOfFrame();
         }
