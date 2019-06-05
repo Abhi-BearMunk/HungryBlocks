@@ -6,13 +6,15 @@ public class LevelManager : MonoBehaviour
 {
     public GridManager grid;
     //public GridVisualizer gridVisualizer;
-    public WaveManager waveManager;
-    // Start is called before the first frame update
+    public GameObject waveManagerObject;
+    public IWaveManager waveManager;
+    public List<RectInt> safeSpawnRegions;
 
     public bool paused;
 
     void Start()
     {
+        waveManager = waveManagerObject.GetComponent<IWaveManager>();
         StartLevel();
     }
 

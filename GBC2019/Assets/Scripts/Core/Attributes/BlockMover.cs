@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Block))]
-public class BlockMover : MonoBehaviour, IPausable
+public class BlockMover : MonoBehaviour
 {
     public float deltaTime = 0.8f;
 
@@ -23,7 +23,7 @@ public class BlockMover : MonoBehaviour, IPausable
     }
 
     //Update is called once per frame
-    public void OnUpdate()
+    public void Update()
     {
         if(move)
         {

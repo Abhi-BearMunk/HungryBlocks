@@ -66,11 +66,40 @@ public class Cell : MonoBehaviour
         return parentBlock;
     }
 
+    /// <summary>
+    /// Kill a cell removing it form the grid and its parent block
+    /// </summary>
     public void Kill()
     {
         parentBlock.GetGrid().RemoveCell(gridPosition, this);
         parentBlock.GetShape().RemoveCell(this);
         OnKill.Invoke();
         Destroy(this);
+    }
+
+    /// <summary>
+    /// Kill a list of cells and then make sure all the affected blocks stay connected
+    /// </summary>
+    /// <param name="cellsToKill"> list of cells to kill</param>
+    public static void KillCellsAndMaintainConnecetdness(List<Cell> cellsToKill)
+    {
+        List<Block> blocksAffected = new List<Block>();
+
+        foreach (Cell cell in cellsToKill)
+        {
+            if (cell != null)
+            {
+                if (!blocksAffected.Contains(cell.GetParentBlock()))
+                {
+                    blocksAffected.Add(cell.GetParentBlock());
+                }
+                cell.Kill();
+            }
+        }
+
+        foreach (Block block in blocksAffected)
+        {
+            block.KillDisconnectedCells();
+        }
     }
 }

@@ -9,6 +9,21 @@ public class GridManagerEditor : Editor
     bool showBoundaries;
     bool showCellOccupancy;
 
+    [DrawGizmo(GizmoType.InSelectionHierarchy | GizmoType.NotInSelectionHierarchy)]
+    static void DrawHandles(GridManager grid, GizmoType gizmoType)
+    {
+        Handles.color = Color.cyan;
+        for (int i = 0; i <= grid.GetHeight(); i++)
+        {
+            Handles.DrawLine(grid.origin + i * grid.unitLength * Vector3.up, grid.origin + i * grid.unitLength * Vector3.up + grid.unitLength * grid.GetWidth() * Vector3.right);
+        }
+
+        for (int i = 0; i <= grid.GetWidth(); i++)
+        {
+            Handles.DrawLine(grid.origin + i * grid.unitLength * Vector3.right, grid.origin + i * grid.unitLength * Vector3.right + grid.unitLength * grid.GetHeight() * Vector3.up);
+        }
+    }
+
     //[DrawGizmo(GizmoType.InSelectionHierarchy | GizmoType.NotInSelectionHierarchy)]
     //static void DrawHandles(GridManager grid, GizmoType gizmoType)
     //{
@@ -111,7 +126,7 @@ public class GridManagerEditor : Editor
         {
             showCellOccupancy = !showCellOccupancy;
             EditorPrefs.SetBool("ShowCellOccupancy", showCellOccupancy);
-        }      
+        }
     }
 
     void OnEnable()
@@ -218,5 +233,7 @@ public class GridManagerEditor : Editor
             }
 
         }
+
+       
     }
 }

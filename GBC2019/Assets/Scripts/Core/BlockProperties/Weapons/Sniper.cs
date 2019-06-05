@@ -48,23 +48,7 @@ public class Sniper : MonoBehaviour, IRegisterProperty, IWeapon
         }
         laserEffect.SetPosition(1, myBlock.GetGrid().WorldPosition(position));
 
-        foreach (Cell cell in cellsToKill)
-        {
-            if (cell != null)
-            {
-                if (!blocksAffected.Contains(cell.GetParentBlock()))
-                {
-                    blocksAffected.Add(cell.GetParentBlock());
-                }
-                cell.Kill();
-            }
-        }
-        cellsToKill.Clear();
-
-        foreach (Block block in blocksAffected)
-        {
-            block.KillDisconnectedCells();
-        }
+        Cell.KillCellsAndMaintainConnecetdness(cellsToKill);
     }
 }
 

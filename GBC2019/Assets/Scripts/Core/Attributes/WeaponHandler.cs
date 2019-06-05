@@ -15,16 +15,11 @@ public class WeaponHandler : MonoBehaviour
     public IWeapon weapon;
 
 
-    public void SetNewWeapon(System.Type type) 
+    public void SetNewWeapon<T>() where T: IWeapon
     {        
-        if(!GetComponent(type))
+        if (GetComponent<T>() != null)
         {
-            gameObject.AddComponent(type);
-        }
-
-        if (GetComponent(type) && (IWeapon)GetComponent(type) != null)
-        {
-            weapon = (IWeapon)GetComponent(type);
+            weapon = GetComponent<T>();
             OnWeaponChange.Invoke(weapon);
         }
     }

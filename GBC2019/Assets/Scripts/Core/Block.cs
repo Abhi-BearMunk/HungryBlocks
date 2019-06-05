@@ -143,7 +143,7 @@ public class Block : MonoBehaviour
     public bool Translate(Vector2Int move)
     {
         // Reset properties
-        foreach(IResetProperty reset in resetProperties)
+        foreach (IResetProperty reset in resetProperties)
         {
             reset.Reset();
         }

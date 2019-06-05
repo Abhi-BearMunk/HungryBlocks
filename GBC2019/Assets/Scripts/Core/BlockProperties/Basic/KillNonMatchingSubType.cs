@@ -6,7 +6,6 @@ public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty,
 {
     Block block;
     List<Cell> cellsToKill = new List<Cell>();
-    List<Block> blocksAffected = new List<Block>();
 
     public void Register(Block _block)
     {
@@ -39,30 +38,11 @@ public class KillNonMatchingSubType : MonoBehaviour, IPostTransformCellProperty,
 
     public void PostTransform()
     {
-        blocksAffected.Clear();
-        foreach(Cell cell in cellsToKill)
-        {
-            if(cell != null)
-            {
-                if (!blocksAffected.Contains(cell.GetParentBlock()))
-                {
-                    blocksAffected.Add(cell.GetParentBlock());
-                }
-                cell.Kill();
-            }
-        }
-        cellsToKill.Clear();
-
-        foreach (Block block in blocksAffected)
-        {
-            block.KillDisconnectedCells();
-        }
-        blocksAffected.Clear();
+        Cell.KillCellsAndMaintainConnecetdness(cellsToKill);
     }
 
     public void Reset()
     {
         cellsToKill.Clear();
-        blocksAffected.Clear();
     }
 }

@@ -2,9 +2,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public class WeaponType<T> where T : IWeapon
+{
+
+}
 public class PowerUp : MonoBehaviour, IPostTransformBlockProperty
 {
-    public System.Type weaponType;
+    public enum PowerUpType { GrenadeLauncher, Sniper}
+    public PowerUpType weaponType;
     public void PostTransform()
     {
         Block block = GetComponent<Block>();
@@ -32,12 +37,25 @@ public class PowerUp : MonoBehaviour, IPostTransformBlockProperty
         }
     }
 
-    public void ConsumePowerup(Block other)
+    private void SetWeapon(Block other)
     {
         if (other.GetComponent<WeaponHandler>())
         {
-            other.GetComponent<WeaponHandler>().SetNewWeapon(weaponType);
+            switch(weaponType)
+            {
+                case PowerUpType.GrenadeLauncher:
+                    other.GetComponent<WeaponHandler>().SetNewWeapon<GrenadeLauncher>();
+                    break;
+                case PowerUpType.Sniper:
+                    other.GetComponent<WeaponHandler>().SetNewWeapon<Sniper>();
+                    break;
+            }
         }
+    }
+
+    public void ConsumePowerup(Block other)
+    {
+        SetWeapon(other);
         List<Cell> cells = new List<Cell>(GetComponent<Block>().GetShape().cellList);
         foreach(Cell cell in cells)
         {

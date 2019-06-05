@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-
 public class ShapeDictionary : MonoBehaviour
 {
 
-    public enum BlockShape { Dot = 0, Cross = 1, Hline = 2, Vline = 3, Box2x2 = 4, H = 5, Trident = 6, UFO = 7, E = 8, C = 9, ComplexE = 10, Count = 11 }
+    public enum BlockShape { Dot = 0, Cross = 1, Hline = 2, Vline = 3, Box2x2 = 4, H = 5, Trident = 6, UFO = 7, E = 8, C = 9, ComplexE = 10, SkullB = 11,  Count = 12 }
     public static Dictionary<BlockShape, List<Vector2Int>> shapeDefinitions = new Dictionary<BlockShape, List<Vector2Int>>();
+    public BlockShapeDefinition skullB;
 
     private void Awake()
     {
@@ -145,6 +145,9 @@ public class ShapeDictionary : MonoBehaviour
 
 
         shapeDefinitions.Add(BlockShape.ComplexE, shapeGrid);
+
+        // SkullB
+        shapeDefinitions.Add(BlockShape.SkullB, skullB.shapeDefinition);
     }
 }
 

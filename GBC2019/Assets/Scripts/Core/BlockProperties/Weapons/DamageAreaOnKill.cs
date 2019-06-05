@@ -9,7 +9,6 @@ public class DamageAreaOnKill : MonoBehaviour, IOnKillProperty, IRegisterPropert
     public GameObject explosionEffectPrefab;
 
     List<Cell> cellsToKill = new List<Cell>();
-    List<Block> blocksAffected = new List<Block>();
 
     Block block;
     public void Register(Block _block)
@@ -21,7 +20,8 @@ public class DamageAreaOnKill : MonoBehaviour, IOnKillProperty, IRegisterPropert
     {
         Vector2Int blockCenter = block.GetShape().aabbCenter;
         CellGroup group = null;
-        Instantiate(explosionEffectPrefab, block.GetGrid().origin + (new Vector3(blockCenter.x, blockCenter.y, 0) + new Vector3(0.5f, 0.5f, 0)) * block.GetGrid().unitLength, Quaternion.identity);
+        Instantiate(explosionEffectPrefab, block.GetGrid().origin + (new Vector3(blockCenter.x, blockCenter.y, 0) + new Vector3(0.5f, 0.5f, 0)) * block.GetGrid().unitLength, Quaternion.identity).transform.localScale = new Vector3((2 * halfWidth + 1) / 9.0f, (2 * halfHeight + 1) / 9.0f, 1);
+
         for (int row = blockCenter.y - halfHeight; row <= blockCenter.y + halfHeight; row++)
         {
             for (int column = blockCenter.x - halfWidth; column <= blockCenter.x + halfWidth; column++)
@@ -50,22 +50,6 @@ public class DamageAreaOnKill : MonoBehaviour, IOnKillProperty, IRegisterPropert
             }
         }
 
-        foreach (Cell cell in cellsToKill)
-        {
-            if (cell != null)
-            {
-                if (!blocksAffected.Contains(cell.GetParentBlock()))
-                {
-                    blocksAffected.Add(cell.GetParentBlock());
-                }
-                cell.Kill();
-            }
-        }
-        cellsToKill.Clear();
-
-        foreach (Block block in blocksAffected)
-        {
-            block.KillDisconnectedCells();
-        }
+        Cell.KillCellsAndMaintainConnecetdness(cellsToKill);
     }
 }
