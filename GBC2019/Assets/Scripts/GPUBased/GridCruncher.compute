@@ -1,0 +1,495 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel GetDeadBlocks
+#pragma kernel AssignBlockProperties
+#pragma kernel GetDeadCells
+#pragma kernel AddCells
+#pragma kernel FlushGridData
+#pragma kernel UpdateGridData1
+#pragma kernel UpdateGridData2
+#pragma kernel FlushBlockBounds
+#pragma kernel UpdateBlockBounds
+#pragma kernel UpdateBlockCenters
+#pragma kernel TickBlock
+#pragma kernel CheckBlockCollisions
+#pragma kernel UpdateAttatchBlockID
+#pragma kernel AttatchBlockCells
+#pragma kernel MoveCells
+#pragma kernel PostMoveCells
+#pragma kernel ResetBlockDeathAndMove
+#pragma kernel RefreshBlockDeath
+#pragma kernel ClearDisplay
+#pragma kernel DisplayCells
+#pragma kernel DisplayDyingCells
+#pragma kernel DisplayBlockDebug
+
+struct BlockStruct
+{
+	int ID;
+	int creationID;
+	int type;
+	int subType;
+	int dead;
+	int left;
+	int right;
+	int up;
+	int down;
+	int centerX;
+	int centerY;
+	int velocityX;
+	int velocityY;
+	int moveTicks;
+	int currentTick;
+	int canMove;
+	int attachToBlockId;
+    int attatched;
+};
+
+struct CellStruct
+{
+	int ID;
+	int gridPosX;
+	int gridPosY;
+	int parentBlockID;
+	int dying;
+	int dead;
+	int left;
+	int right;
+	int up;
+	int down;
+    int rotTicks;
+    float lastX;
+    float lastY;
+};
+
+struct GridCell
+{
+	int cell1ID;
+	int cell2ID;
+    int cells [10];
+};
+
+
+
+RWTexture2D<float4> Result;
+RWTexture2D<float4> DebugResult;
+Texture2D<float4> cellSprite;
+SamplerState sampler_cellSprite;
+int scalingFactor;
+
+// Core grid params
+uint width;
+uint height;
+uint blockPoolHead;
+RWStructuredBuffer<BlockStruct> blockBuffer;
+RWStructuredBuffer<CellStruct> cellBuffer;
+RWStructuredBuffer<GridCell> grid;
+
+// Add Block Params
+int newCreationID;
+int newBlockPosX;
+int newBlockPosY;
+uint newType;
+uint newSubType;
+int newVelocityX;
+int newVelocityY;
+int newMoveTicks;
+RWStructuredBuffer<int2> newCells;
+
+// Dead Pool
+AppendStructuredBuffer<int> deadBlocksBuffer : register(u1);
+AppendStructuredBuffer<int> deadCellsBuffer : register(u2);
+RWStructuredBuffer<int> deadBlocksCurated : register(u1);
+RWStructuredBuffer<int> deadCellsCurated : register(u2);
+
+AppendStructuredBuffer<int2> attatchBlocksBuffer : register(u3);
+RWStructuredBuffer<int2> attatchBlocksBufferCurated : register(u4);
+//ConsumeStructuredBuffer<float3> consumeBuffer : register(u3);
+
+// Some helper functions
+float4 GetColorFromType(int blockType)
+{
+	if (blockType == 1)
+	{
+		return float4(1, 0, 0, 1);
+	}
+	if (blockType == 2)
+	{
+		return float4(0, 1, 0, 1);
+	}
+	if (blockType == 3)
+	{
+		return float4(0, 0, 1, 1);
+	}
+	if (blockType == 4)
+	{
+		return float4(1, 0.75, 0.016, 1);
+	}
+
+	return float4(1, 1, 1, 1);
+}
+
+bool InGridBounds(float x, float y)
+{
+	return x >= 0 && x < width && y >= 0 && y < height;
+}
+
+uint rand_lcg(uint rng_state)
+{
+    // LCG values from Numerical Recipes
+    rng_state = 1664525 * rng_state + 1013904223;
+    return rng_state;
+}
+
+// Kernels
+[numthreads(16, 1, 1)]
+void GetDeadBlocks(uint3 id : SV_DispatchThreadID)
+{
+	int blockId = id.x;
+	if (blockBuffer[blockId].dead == 0)
+	{
+		deadBlocksBuffer.Append(blockId);
+	}
+}
+
+[numthreads(1, 1, 1)]
+void AssignBlockProperties(uint3 id : SV_DispatchThreadID)
+{
+    blockBuffer[deadBlocksCurated[0]].ID = deadBlocksCurated[0];
+	blockBuffer[deadBlocksCurated[0]].type = newType;
+	blockBuffer[deadBlocksCurated[0]].subType = newSubType;
+	blockBuffer[deadBlocksCurated[0]].velocityX = newVelocityX;
+	blockBuffer[deadBlocksCurated[0]].velocityY = newVelocityY;
+	blockBuffer[deadBlocksCurated[0]].moveTicks = newMoveTicks;
+	blockBuffer[deadBlocksCurated[0]].currentTick = 0;
+	blockBuffer[deadBlocksCurated[0]].canMove = 0;
+	blockBuffer[deadBlocksCurated[0]].creationID = newCreationID;
+	blockBuffer[deadBlocksCurated[0]].attachToBlockId = -1;
+    blockBuffer[deadBlocksCurated[0]].attatched = 0;
+	blockBuffer[deadBlocksCurated[0]].dead = 1;
+}
+
+[numthreads(16, 1, 1)]
+void GetDeadCells(uint3 id : SV_DispatchThreadID)
+{
+	int cellId = id.x;
+    if (cellBuffer[cellId].dead == 0 && cellBuffer[cellId].dying == 0)
+	{
+		deadCellsBuffer.Append(cellId);
+	}
+}
+
+[numthreads(8, 1, 1)]
+void AddCells(uint3 id : SV_DispatchThreadID)
+{
+	int cellId = deadCellsCurated[id.x];
+	if (newCells[id.x].x >= -1000)
+	{
+		cellBuffer[cellId].ID = cellId;
+		cellBuffer[cellId].gridPosX = newCells[id.x].x;
+		cellBuffer[cellId].gridPosY = newCells[id.x].y;
+        cellBuffer[cellId].lastX = newCells[id.x].x;
+        cellBuffer[cellId].lastY = newCells[id.x].y;
+		cellBuffer[cellId].parentBlockID = deadBlocksCurated[0];
+		cellBuffer[cellId].dead = 1;
+        cellBuffer[cellId].dying = 0;
+        cellBuffer[cellId].rotTicks = 0;
+    }	
+}
+
+[numthreads(16, 9, 1)]
+void FlushGridData(uint3 id : SV_DispatchThreadID)
+{
+	int gridId = width * id.y + id.x;
+	grid[gridId].cell1ID = -1;
+	grid[gridId].cell2ID = -1;
+}
+
+[numthreads(16, 1, 1)]
+void UpdateGridData1(uint3 id : SV_DispatchThreadID)
+{
+	int cellId = id.x;
+    if (cellBuffer[cellId].dead == 1 && InGridBounds(cellBuffer[cellId].gridPosX, cellBuffer[cellId].gridPosY))
+	{
+		int gridId = width * cellBuffer[cellId].gridPosY + cellBuffer[cellId].gridPosX;
+		grid[gridId].cell1ID = cellId;
+	}
+}
+
+[numthreads(16, 1, 1)]
+void UpdateGridData2(uint3 id : SV_DispatchThreadID)
+{
+	int cellId = id.x;
+    if (cellBuffer[cellId].dead == 1 && InGridBounds(cellBuffer[cellId].gridPosX, cellBuffer[cellId].gridPosY))
+	{
+		int gridId = width * cellBuffer[cellId].gridPosY + cellBuffer[cellId].gridPosX;
+		if (grid[gridId].cell1ID != cellId)
+		{
+			grid[gridId].cell2ID = cellId;
+		}
+	}
+}
+
+[numthreads(16, 1, 1)]
+void FlushBlockBounds(uint3 id : SV_DispatchThreadID)
+{
+	int blockId = id.x;
+	blockBuffer[blockId].left = 10000;
+	blockBuffer[blockId].right = -10000;
+	blockBuffer[blockId].up = -10000;
+	blockBuffer[blockId].down = 10000;
+}
+
+[numthreads(16, 1, 1)]
+void UpdateBlockBounds(uint3 id : SV_DispatchThreadID)
+{
+	int cellId = id.x;
+	if (cellBuffer[cellId].dead == 1)
+	{
+		int temp;
+		InterlockedMin(blockBuffer[cellBuffer[cellId].parentBlockID].left, (int)cellBuffer[cellId].gridPosX, temp);
+		InterlockedMax(blockBuffer[cellBuffer[cellId].parentBlockID].right, (int)cellBuffer[cellId].gridPosX, temp);
+		InterlockedMax(blockBuffer[cellBuffer[cellId].parentBlockID].up, (int)cellBuffer[cellId].gridPosY, temp);
+		InterlockedMin(blockBuffer[cellBuffer[cellId].parentBlockID].down, (int)cellBuffer[cellId].gridPosY, temp);
+	}
+}
+
+[numthreads(16, 1, 1)]
+void UpdateBlockCenters(uint3 id : SV_DispatchThreadID)
+{
+	int blockId = id.x;
+	if (blockBuffer[blockId].dead == 1)
+	{
+		blockBuffer[blockId].centerX = floor((blockBuffer[blockId].left + blockBuffer[blockId].right) / 2);
+		blockBuffer[blockId].centerY = floor((blockBuffer[blockId].up + blockBuffer[blockId].down) / 2);
+	}
+}
+
+[numthreads(16, 1, 1)]
+void TickBlock(uint3 id : SV_DispatchThreadID)
+{
+	int blockId = id.x;
+	if (blockBuffer[blockId].dead == 1)
+	{
+		blockBuffer[blockId].currentTick++;
+		if (blockBuffer[blockId].currentTick >= blockBuffer[blockId].moveTicks)
+		{
+			blockBuffer[blockId].canMove = 1;
+		}
+	}
+}
+
+[numthreads(16, 1, 1)]
+void CheckBlockCollisions(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+	// Get Cell
+    CellStruct cell = cellBuffer[cellId];
+	//Get Block
+    BlockStruct block = blockBuffer[cell.parentBlockID];
+	// If Cell is alive	and block can move
+    if (cell.dead == 1 && block.canMove == 1)
+    {
+			// To check where I am moving to
+        int destGridX = cell.gridPosX + block.velocityX;
+        int destGridY = cell.gridPosY + block.velocityY;
+			// If destination is in bounds
+        if (InGridBounds(destGridX, destGridY))
+        {
+            GridCell gridAhead = grid[width * destGridY + destGridX];
+				// If the grid ahead is occupied by at least 1
+            if (gridAhead.cell1ID > -1)
+            {
+                BlockStruct blockAhead = blockBuffer[cellBuffer[gridAhead.cell1ID].parentBlockID];
+					// If it is same type but not same block
+                if (block.subType == blockAhead.subType && block.ID != blockAhead.ID)
+                {
+                    int2 attatchPair = int2(min(block.ID, blockAhead.ID), max(block.ID, blockAhead.ID));
+                    attatchBlocksBuffer.Append(attatchPair);
+                }
+            }
+            if (gridAhead.cell2ID > -1)
+            {
+                BlockStruct blockAhead = blockBuffer[cellBuffer[gridAhead.cell2ID].parentBlockID];
+					// If it is same type but not same block
+                if (block.subType == blockAhead.subType && block.ID != blockAhead.ID)
+                {
+                    int2 attatchPair = int2(min(block.ID, blockAhead.ID), max(block.ID, blockAhead.ID));
+                    attatchBlocksBuffer.Append(attatchPair);
+                }
+            }
+        }
+    }
+}
+
+[numthreads(8, 1, 1)]
+void UpdateAttatchBlockID(uint3 id : SV_DispatchThreadID)
+{
+    int blockId = attatchBlocksBufferCurated[id.x].x;
+    if (blockId > -1)
+    {
+        blockBuffer[blockId].attachToBlockId = attatchBlocksBufferCurated[id.x].y;
+    }
+}
+
+[numthreads(16, 1, 1)]
+void AttatchBlockCells(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    if (cellBuffer[cellId].dead == 1 && blockBuffer[cellBuffer[cellId].parentBlockID].attachToBlockId > -1)
+    {
+        cellBuffer[cellId].parentBlockID = blockBuffer[cellBuffer[cellId].parentBlockID].attachToBlockId;
+    }
+}
+
+
+[numthreads(16, 1, 1)]
+void MoveCells(uint3 id : SV_DispatchThreadID)
+{
+	int cellId = id.x;
+	//if (cellBuffer[cellId].dead == 1)
+	//{
+		if (blockBuffer[cellBuffer[cellId].parentBlockID].canMove == 1)
+		{
+            cellBuffer[cellId].gridPosX += blockBuffer[cellBuffer[cellId].parentBlockID].velocityX;
+            cellBuffer[cellId].gridPosY += blockBuffer[cellBuffer[cellId].parentBlockID].velocityY;
+        }
+	//}
+}
+
+// Do grid refresh first
+[numthreads(16, 9, 1)]
+void PostMoveCells(uint3 id : SV_DispatchThreadID)
+{
+    int gridId = width * id.y + id.x;
+    if (grid[gridId].cell1ID > -1 && grid[gridId].cell2ID > -1)
+    {
+        cellBuffer[grid[gridId].cell1ID].dead = 0;
+        cellBuffer[grid[gridId].cell2ID].dead = 0;
+        cellBuffer[grid[gridId].cell1ID].dying = 1;
+        cellBuffer[grid[gridId].cell2ID].dying = 1;
+        grid[gridId].cell1ID = -1;
+        grid[gridId].cell2ID = -1;
+    }
+}
+
+[numthreads(16, 1, 1)]
+void ResetBlockDeathAndMove(uint3 id : SV_DispatchThreadID)
+{
+    int blockId = id.x;
+    blockBuffer[blockId].dead = 0;
+    if (blockBuffer[blockId].canMove == 1)
+    {
+        blockBuffer[blockId].canMove = 0;
+        blockBuffer[blockId].currentTick = 0;
+    }
+}
+
+[numthreads(16, 1, 1)]
+void RefreshBlockDeath(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    if (cellBuffer[cellId].dead == 1)
+    {
+        blockBuffer[cellBuffer[cellId].parentBlockID].dead = 1;
+    }
+}
+
+[numthreads(16, 9, 1)]
+void ClearDisplay(uint3 id : SV_DispatchThreadID)
+{
+    Result[id.xy] = float4(0, 0, 0, 0);
+}
+
+[numthreads(16, 9, 1)]
+void DisplayCells(uint3 id : SV_DispatchThreadID)
+{
+	int x = floor(id.x / scalingFactor);
+	int y = floor(id.y / scalingFactor);
+	int gridId = width * y + x;
+    if (InGridBounds(x, y))
+    {    
+        int cellId = grid[gridId].cell1ID;
+        float deltaX = ((float) x - (float) cellBuffer[cellId].lastX) * (float) scalingFactor;
+        float deltaY = ((float) y - (float) cellBuffer[cellId].lastY) * (float) scalingFactor;
+        if (cellId >= 0 && cellBuffer[cellId].dead == 1)
+        {
+            float u = (float) id.x / (float) scalingFactor - (float) x;
+            float v = (float) id.y / (float) scalingFactor - (float) y;
+            Result[id.xy - int2(deltaX, deltaY)] = cellSprite.SampleLevel(sampler_cellSprite, float2(u, v), 3) * GetColorFromType(blockBuffer[cellBuffer[cellId].parentBlockID].subType);
+            cellBuffer[cellId].lastX = cellBuffer[cellId].lastX * 0.97 + (float) x * 0.03;
+            cellBuffer[cellId].lastY = cellBuffer[cellId].lastY * 0.97 + (float) y * 0.03;              
+        }
+    }
+}
+
+[numthreads(10, 10, 8)]
+void DisplayDyingCells(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.z;
+    if (cellBuffer[cellId].dying == 1)
+    {
+        float theta = (float) cellBuffer[cellId].rotTicks * 0.5;
+        float scale = 1.5 - 0.01 * (float) cellBuffer[cellId].rotTicks;
+        float offset = 2 * (float) cellBuffer[cellId].rotTicks;
+        float offsetX = (id.x > (float) scalingFactor * 0.5) ? offset : -offset;
+        float offsetY = (id.y > (float) scalingFactor * 0.5) ? offset : -offset;
+        float originalX = id.x - (float) scalingFactor * 0.5;
+        float originalY = id.y - (float) scalingFactor * 0.5;
+        float newX = originalX * cos(theta) - originalY * sin(theta);
+        float newY = originalX * sin(theta) + originalY * cos(theta);
+        newX *= scale;
+        newY *= scale;
+
+        if (InGridBounds(cellBuffer[cellId].gridPosX, cellBuffer[cellId].gridPosY))
+        {
+            Result[uint2(((float) cellBuffer[cellId].lastX + 0.5) * scalingFactor + newX, ((float) cellBuffer[cellId].lastY + 0.5) * scalingFactor + newY)] = cellSprite.SampleLevel(sampler_cellSprite, float2(id.x, id.y) / (float) scalingFactor, 3) * GetColorFromType(blockBuffer[cellBuffer[cellId].parentBlockID].subType);
+        }
+        cellBuffer[cellId].rotTicks++;
+        float delX = cellBuffer[cellId].gridPosX - cellBuffer[cellId].lastX;
+        float delY = cellBuffer[cellId].gridPosY - cellBuffer[cellId].lastY;
+        cellBuffer[cellId].lastX = cellBuffer[cellId].lastX * 0.99 + (float) (cellBuffer[cellId].gridPosX/* + 9 * (id.z % 3) * blockBuffer[cellBuffer[cellId].parentBlockID].velocityX * 0.5*/) * 0.01;
+        cellBuffer[cellId].lastY = cellBuffer[cellId].lastY * 0.99 + (float) (cellBuffer[cellId].gridPosY/* + 3 * (id.z % 7) * blockBuffer[cellBuffer[cellId].parentBlockID].velocityY * 0.5*/) * 0.01;
+        if (scale <= 0)
+        {
+            cellBuffer[cellId].dying = 0;
+        }
+    }
+}
+
+[numthreads(8, 9, 8)]
+void DisplayBlockDebug(uint3 id : SV_DispatchThreadID)
+{
+	int x = id.x;
+	int y = id.y;
+
+	float u = (float)id.x / (float)scalingFactor - (float)x;
+	float v = (float)id.y / (float)scalingFactor - (float)y;
+
+	if (blockBuffer[id.z].dead == 1)
+	{
+		if (blockBuffer[id.z].left == x &&  y <= blockBuffer[id.z].up && y >= blockBuffer[id.z].down)
+		{
+			DebugResult[id.xy] = float4(1, 0, 0, 0.8);
+		}
+
+		if (blockBuffer[id.z].right == x && y <= blockBuffer[id.z].up && y >= blockBuffer[id.z].down)
+		{
+			DebugResult[id.xy] = float4(0, 1, 0, 0.8);
+		}
+
+		if (blockBuffer[id.z].up == y && x <= blockBuffer[id.z].right && x >= blockBuffer[id.z].left)
+		{
+			DebugResult[id.xy] = float4(0, 0, 1, 0.8);
+		}
+
+		if (blockBuffer[id.z].down == y && x <= blockBuffer[id.z].right && x >= blockBuffer[id.z].left)
+		{
+			DebugResult[id.xy] = float4(1, 1, 0, 0.8);
+		}
+
+		if (blockBuffer[id.z].centerX == x && blockBuffer[id.z].centerY == y)
+		{
+			DebugResult[id.xy] = float4(1, 0.5, 0, 1);
+		}
+	}
+}

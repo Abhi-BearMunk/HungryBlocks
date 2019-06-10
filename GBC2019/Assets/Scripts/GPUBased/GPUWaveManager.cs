@@ -1,13 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Unity.Entities;
-using UnityEngine.SceneManagement;
-/// <summary>
-/// Generates waves of NPC Blocks
-/// </summary>
-public class WaveManager : MonoBehaviour, IWaveManager
+
+public class GPUWaveManager : MonoBehaviour, IWaveManager
 {
+    public GridComputeOperator gridOperator;
     public GridManager grid;
     public LevelManager level;
     private bool spawnWave;
@@ -39,7 +36,7 @@ public class WaveManager : MonoBehaviour, IWaveManager
         {
             Spawn8();
             spawnPowerUp++;
-            if(spawnPowerUp > 5)
+            if (spawnPowerUp > 5)
             {
                 spawnPowerUp = 0;
                 SpawnPowerUp();
@@ -60,18 +57,18 @@ public class WaveManager : MonoBehaviour, IWaveManager
         //    grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(0, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(grid.GetWidth() + 10, grid.GetHeight() - 10), (Cell.CellType)(Random.Range(0, 3)));
         //    grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(0, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(grid.GetWidth() + 10, 10), (Cell.CellType)(Random.Range(0, 3)));
 
-            //    spawnTimer = 0;
-            //}
+        //    spawnTimer = 0;
+        //}
     }
 
     public void InitiateWave()
     {
-        spawnWave = true;
+        //spawnWave = true;
         //grid.CreateBlock(ShapeDictionary.shapeDefinitions[shape], new Vector2Int(0, 0), (Cell.CellType)(Random.Range(0, 4)));
 
         //grid.CreateBlock(ShapeDictionary.shapeDefinitions[shape], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() / 2), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 4)));
-        SpawnPlayer();
-        //SpawnAbunch();
+        //SpawnPlayer();
+        SpawnAbunch();
         //SpawnColliding();
     }
 
@@ -83,15 +80,18 @@ public class WaveManager : MonoBehaviour, IWaveManager
 
     void SpawnAbunch()
     {
-        Block block;
         for (int i = 0; i < initialNumber; i++)
         {
-            GameObject go = new GameObject("Block", typeof(Block), typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController), typeof(AbsorbData));
-            block = go.GetComponent<Block>();
-            block.gameObject.AddComponent<BlockMover>();
-            //block.gameObject.AddComponent<GameObjectEntity>();
-            block.GetComponent<BlockMover>().Translate(new Vector2Int(Random.Range(-1, 2), Random.Range(-1, 2)));
-            grid.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, (int)ShapeDictionary.BlockShape.Count - 1)], new Vector2Int(Random.Range(10, grid.GetWidth() - 10), Random.Range(10, grid.GetHeight() - 10)), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
+            //block.GetComponent<BlockMover>().Translate(new Vector2Int(Random.Range(-1, 2), Random.Range(-1, 2)));
+            BlockProperties properties;
+            properties.moveTicks = Random.Range(20, 61);
+            properties.velocityX = Random.Range(0 , 1.0f) > 0.5f ? -1 : 1;
+            properties.velocityY = Random.Range(0, 1.0f) > 0.5f ? -1 : 1;
+            properties.type = Block.CellType.Enemy;
+            //properties.subType = (Block.CellSubType)(Random.Range(1, 5));
+            properties.subType = Block.CellSubType.R;
+
+            gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(Random.Range(0, gridOperator.width), Random.Range(0, gridOperator.height)), properties);
         }
     }
 
@@ -166,7 +166,7 @@ public class WaveManager : MonoBehaviour, IWaveManager
                 shape = ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, 8)];
                 specialShape = false;
             }
-            
+
 
             // X
             go = new GameObject("Block", typeof(AbsorbData), typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController));
@@ -206,7 +206,7 @@ public class WaveManager : MonoBehaviour, IWaveManager
         Block block = go.GetComponent<Block>();
         //block.gameObject.AddComponent<BlockMover>();
         //block.GetComponent<BlockMover>().deltaTime *= 2;
-        if(Random.Range(0, 1.0f) >= 0.5f)
+        if (Random.Range(0, 1.0f) >= 0.5f)
         {
             block.GetComponent<PowerUp>().weaponType = PowerUp.PowerUpType.GrenadeLauncher;
         }
