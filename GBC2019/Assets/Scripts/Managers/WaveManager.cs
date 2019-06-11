@@ -142,7 +142,7 @@ public class WaveManager : MonoBehaviour, IWaveManager
         List<Vector2Int> shape;
         if (specialShape)
         {
-            shape = ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Dot];
+            shape = ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB];
         }
         else
         {

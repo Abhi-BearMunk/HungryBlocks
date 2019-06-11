@@ -39,7 +39,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
             if (spawnPowerUp > 5)
             {
                 spawnPowerUp = 0;
-                SpawnPowerUp();
+                //SpawnPowerUp();
             }
             spawnTimer = spawnTime;
         }
@@ -63,12 +63,12 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
 
     public void InitiateWave()
     {
-        //spawnWave = true;
+        spawnWave = true;
         //grid.CreateBlock(ShapeDictionary.shapeDefinitions[shape], new Vector2Int(0, 0), (Cell.CellType)(Random.Range(0, 4)));
 
         //grid.CreateBlock(ShapeDictionary.shapeDefinitions[shape], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() / 2), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 4)));
         //SpawnPlayer();
-        SpawnAbunch();
+        //SpawnAbunch();
         //SpawnColliding();
     }
 
@@ -82,16 +82,24 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     {
         for (int i = 0; i < initialNumber; i++)
         {
-            //block.GetComponent<BlockMover>().Translate(new Vector2Int(Random.Range(-1, 2), Random.Range(-1, 2)));
             BlockProperties properties;
             properties.moveTicks = Random.Range(20, 61);
-            properties.velocityX = Random.Range(0 , 1.0f) > 0.5f ? -1 : 1;
+            properties.velocityX = Random.Range(0, 1.0f) > 0.5f ? -1 : 1;
+            //properties.velocityX = 0;
             properties.velocityY = Random.Range(0, 1.0f) > 0.5f ? -1 : 1;
+            //properties.velocityY = 0;
             properties.type = Block.CellType.Enemy;
-            //properties.subType = (Block.CellSubType)(Random.Range(1, 5));
-            properties.subType = Block.CellSubType.R;
+            properties.subType = (Block.CellSubType)(Random.Range(1, 5));
+            //properties.subType = Block.CellSubType.R;
+            properties.absorbPriority = 0;
+            properties.absorbType = 0;
+            properties.ignoreType = 0;
+            properties.canAbsorb = 1;
+            properties.CanBeAbsorbed = 1;
+            properties.KillNonMatching = 1;
+            properties.KillableByNonMatching = 1;
 
-            gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(Random.Range(0, gridOperator.width), Random.Range(0, gridOperator.height)), properties);
+            gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1,8)], new Vector2Int(Random.Range(0, gridOperator.width), Random.Range(0, gridOperator.height)), properties);
         }
     }
 
@@ -137,12 +145,10 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
 
     void Spawn8()
     {
-        Block block;
-        GameObject go;
         List<Vector2Int> shape;
         if (specialShape)
         {
-            shape = ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Dot];
+            shape = ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB];
         }
         else
         {
@@ -152,14 +158,29 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
         List<Block.CellSubType> permutation1 = SubTypePermutation();
         List<Block.CellSubType> permutation2 = SubTypePermutation();
 
+        BlockProperties properties;
+        properties.moveTicks = Random.Range(20, 61);
+        properties.velocityX = 0;
+        properties.velocityY = 0;
+        properties.type = Block.CellType.Enemy;
+        properties.subType = (Block.CellSubType)(Random.Range(1, 5));
+        //properties.subType = Block.CellSubType.R;
+        properties.absorbPriority = 0;
+        properties.absorbType = 0;
+        properties.ignoreType = 0;
+        properties.canAbsorb = 1;
+        properties.CanBeAbsorbed = 1;
+        properties.KillNonMatching = 1;
+        properties.KillableByNonMatching = 1;
 
         for (int i = 0; i < 4; i++)
         {
             // Y
-            go = new GameObject("Block", typeof(AbsorbData), typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController));
-            block = grid.CreateBlock(shape, new Vector2Int(Random.Range(-grid.GetWidth() / 8, grid.GetWidth() / 8) + grid.GetWidth() / 2 + (i <= 1 ? 1 : -1) * grid.GetWidth() / 4, grid.GetHeight() / 2 + (i % 2 == 0 ? 1 : -1) * (grid.GetHeight() / 2 + 4)), Block.CellType.Enemy, permutation1[i], go);
-            block.gameObject.AddComponent<BlockMover>();
-            block.GetComponent<BlockMover>().Translate(0, (i % 2 == 0 ? -1 : 1));
+            properties.subType = permutation1[i];
+            properties.velocityX = 0;
+            properties.velocityY = i % 2 == 0 ? -1 : 1;
+            gridOperator.CreateBlock(shape, new Vector2Int(Random.Range(-gridOperator.width / 8, gridOperator.width / 8) + gridOperator.width / 2 + (i <= 1 ? 1 : -1) * gridOperator.width / 4, gridOperator.height / 2 + (i % 2 == 0 ? 1 : -1) * (gridOperator.height / 2 + 4)), properties);
+
 
             if (specialShape)
             {
@@ -169,10 +190,10 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
 
 
             // X
-            go = new GameObject("Block", typeof(AbsorbData), typeof(KillableByNonMatchingSubType), typeof(KillNonMatchingSubType), typeof(AbsorbMatchingSubtype), typeof(AbsorbableByMatchingSubType), typeof(DestroyOnKill), typeof(PauseController));
-            block = grid.CreateBlock(shape, new Vector2Int(grid.GetWidth() / 2 + (i % 2 == 0 ? 1 : -1) * (grid.GetWidth() / 2 + 5), Random.Range(-grid.GetHeight() / 8, grid.GetHeight() / 8) + grid.GetHeight() / 2 + (i <= 1 ? 1 : -1) * grid.GetHeight() / 4), Block.CellType.Enemy, permutation2[i], go);
-            block.gameObject.AddComponent<BlockMover>();
-            block.GetComponent<BlockMover>().Translate((i % 2 == 0 ? -1 : 1), 0);
+            properties.subType = permutation2[i];
+            properties.velocityX = i % 2 == 0 ? -1 : 1;
+            properties.velocityY = 0;
+            gridOperator.CreateBlock(shape, new Vector2Int(gridOperator.width / 2 + (i % 2 == 0 ? 1 : -1) * (gridOperator.width / 2 + 5), Random.Range(-gridOperator.height / 8, gridOperator.height / 8) + gridOperator.height / 2 + (i <= 1 ? 1 : -1) * gridOperator.height / 4), properties);
         }
     }
 

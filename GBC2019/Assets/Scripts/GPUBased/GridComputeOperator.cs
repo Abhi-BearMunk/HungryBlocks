@@ -9,32 +9,46 @@ public struct BlockProperties
     public int velocityX;
     public int velocityY;
     public int moveTicks;
+    public int absorbPriority;
+    public int absorbType;
+    public int ignoreType;
+    public int canAbsorb;
+    public int CanBeAbsorbed;
+    public int KillNonMatching;
+    public int KillableByNonMatching;
 }
 
 public struct BlockStruct
 {
-    public int ID;
-    public int creationID;
-    public int type;
-    public int subType;
-    public int dead;
-    public int left;
-    public int right;
-    public int up;
-    public int down;
-    public int centerX;
-    public int centerY;
-    public int velocityX;
-    public int velocityY;
-    public int moveTicks;
-    public int currentTick;
-    public int canMove;
-    public int attachToBlockId;
-    public int attatched;
+    public int ID; //0
+    public int creationID;//1
+    public int type;//2
+    public int subType;//3
+    public int dead;//4
+    public int left;//5
+    public int right;//6
+    public int up;//7
+    public int down;//8
+    public int centerX;//9
+    public int centerY;//10
+    public int velocityX;//11
+    public int velocityY;//12
+    public int moveTicks;//13
+    public int currentTick;//14
+    public int canMove;//15
+    public int attachToBlockId;//16
+    public int attatched;//17
+    public int absorbPriority;//18
+    public int absorbType;//19
+    public int ignoreType;//20
+    public int canAbsorb;//21
+    public int CanBeAbsorbed;//22
+    public int KillNonMatching;//23
+    public int KillableByNonMatching;//24
 
     public static int GetLength()
     {
-        return sizeof(int) * 18;
+        return sizeof(int) * 25;
     }
 }
 
@@ -51,19 +65,17 @@ public struct CellStruct
     public int up;
     public int down;
     public int rotTicks;
-    public float lastX;
-    public float lastY;
+    public int lastX;
+    public int lastY;
 
     public static int GetLength()
     {
-        return sizeof(int) * 11 + sizeof(float) * 2;
+        return sizeof(int) * 13;
     }
 }
 
 public struct GridCell
 {
-    public int cell1ID;
-    public int cell2ID;
     public int cells0;
     public int cells1;
     public int cells2;
@@ -77,7 +89,7 @@ public struct GridCell
 
     public static int GetLength()
     {
-        return sizeof(int) * 12;
+        return sizeof(int) * 10;
     }
 }
 
@@ -150,6 +162,7 @@ public class GridComputeOperator : MonoBehaviour
         displayTexture.enableRandomWrite = true;
         displayTexture.format = RenderTextureFormat.ARGB64;
         displayTexture.antiAliasing = 8;
+        displayTexture.filterMode = FilterMode.Trilinear;
         displayTexture.Create();
         rend.material.mainTexture = displayTexture;
 
@@ -244,24 +257,15 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
 
-        kernel = gridCruncher.FindKernel("FlushGridData");
-        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-        gridCruncher.Dispatch(kernel, width / 16, height / 9, 1);
+        RefreshGrid();
 
-        kernel = gridCruncher.FindKernel("UpdateGridData1");
+        kernel = gridCruncher.FindKernel("PostMoveKillNonMatchingCells");
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
 
-        kernel = gridCruncher.FindKernel("UpdateGridData2");
-        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
-
-        kernel = gridCruncher.FindKernel("PostMoveCells");
-        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, width / 16, height / 9, 1);
+        RefreshGrid();
 
         kernel = gridCruncher.FindKernel("ResetBlockDeathAndMove");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
@@ -286,11 +290,6 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.Dispatch(kernel, blockArray.Length / 16, 1, 1);
 
-        //kernel = gridCruncher.FindKernel("UpdateCellBoundsFromBlockBounds");
-        //gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        //gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        //gridCruncher.Dispatch(kernel, width / 16, height / 9, 1);
-
         kernel = gridCruncher.FindKernel("ClearDisplay");
         gridCruncher.SetTexture(kernel, "Result", displayTexture);
         gridCruncher.Dispatch(kernel, (width * scalingFactor) / 16, (height * scalingFactor) / 9, 1);
@@ -310,10 +309,9 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.Dispatch(kernel, (scalingFactor) / 10, (scalingFactor) / 10, cellArray.Length / 8);
 
-        //kernel = gridCruncher.FindKernel("DisplayBlockDebug");
-        //gridCruncher.SetTexture(kernel, "DebugResult", debugTexture);
-        //gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        //gridCruncher.Dispatch(kernel, (width) / 8, (height) / 9, blockArray.Length / 8);
+        kernel = gridCruncher.FindKernel("LerpCells");
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
     }
 
     public void CreateBlock(List<Vector2Int> shapeDefinition, Vector2Int position, BlockProperties properties)
@@ -343,6 +341,13 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetInt("newVelocityX", properties.velocityX);
         gridCruncher.SetInt("newVelocityY", properties.velocityY);
         gridCruncher.SetInt("newMoveTicks", properties.moveTicks);
+        gridCruncher.SetInt("newAbsorbPriority", properties.absorbPriority);
+        gridCruncher.SetInt("newAbsorbType", properties.absorbType);
+        gridCruncher.SetInt("newIgnoreType", properties.ignoreType);
+        gridCruncher.SetInt("newCanAbsorb", properties.canAbsorb);
+        gridCruncher.SetInt("newCanBeAbsorbed", properties.CanBeAbsorbed);
+        gridCruncher.SetInt("newKillNonMatching", properties.KillNonMatching);
+        gridCruncher.SetInt("newKillableByNonMatching", properties.KillableByNonMatching);
 
         // Reset the new cell buffer
         newCellsBuffer.SetData(shape);
@@ -350,11 +355,6 @@ public class GridComputeOperator : MonoBehaviour
         // Flush deadCells and deadBlocks Buffer
         deadBlocksBuffer.SetCounterValue(0);
         deadCellsBuffer.SetCounterValue(0);
-
-        // Find a new dead block
-        //int kernel = gridCruncher.FindKernel("SetBlockPoolHead");
-        //gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        //gridCruncher.Dispatch(kernel, blockArray.Length / 8, 1, 1);
 
         // Find dead blocks
         int kernel = gridCruncher.FindKernel("GetDeadBlocks");
@@ -383,19 +383,23 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetBuffer(kernel, "deadCellsCurated", deadCellsBuffer);
         gridCruncher.Dispatch(kernel, shape.Length / 8, 1, 1);
 
-        kernel = gridCruncher.FindKernel("FlushGridData");
+        RefreshGrid();
+    }
+
+    void RefreshGrid()
+    {
+        int kernel = gridCruncher.FindKernel("FlushGridData");
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
         gridCruncher.Dispatch(kernel, width / 16, height / 9, 1);
 
-        kernel = gridCruncher.FindKernel("UpdateGridData1");
-        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
-
-        kernel = gridCruncher.FindKernel("UpdateGridData2");
-        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        for(int i = 0; i < 10; i++)
+        {
+            gridCruncher.SetInt("gridCellIndex", i);
+            kernel = gridCruncher.FindKernel("UpdateGridDataAtIndex");
+            gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+            gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+            gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        }
     }
 
     void OnDestroy()
@@ -405,9 +409,8 @@ public class GridComputeOperator : MonoBehaviour
         cellBuffer.Release();
         gridCellBuffer.Release();
         newCellsBuffer.Release();
-        //attatchBlocksBuffer.Release();
-        //attatchBlocksRetrieveCountBuffer.Release();
-        //attatchBlocksSetDataBuffer.Release();
+        attatchBlocksBuffer.Release();
+        attatchBlocksRetrieveCountBuffer.Release();
         deadBlocksBuffer.Release();
         deadCellsBuffer.Release();
     }
