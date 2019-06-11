@@ -15,6 +15,7 @@
 #pragma kernel ConnectCellToCenter
 #pragma kernel DestroyDisconnectedCells
 #pragma kernel TickBlock
+#pragma kernel SetVelocityById
 #pragma kernel CheckBlockCollisions
 #pragma kernel UpdateAttatchBlockID
 #pragma kernel AttatchBlockCells
@@ -83,6 +84,13 @@ struct GridCell
     int cells [10];
 };
 
+struct VelocityData
+{
+    int blockId;
+    int velocityX;
+    int velocityY;
+};
+
 RWTexture2D<float4> Result;
 RWTexture2D<float4> DebugResult;
 Texture2D<float4> cellSprite;
@@ -127,9 +135,13 @@ AppendStructuredBuffer<int> deadBlocksBuffer : register(u4);
 AppendStructuredBuffer<int> deadCellsBuffer : register(u5);
 RWStructuredBuffer<int> deadBlocksCurated : register(u4);
 RWStructuredBuffer<int> deadCellsCurated : register(u5);
+RWStructuredBuffer<int> newBlockId;
 
 // Disconnected Cells Params
 RWStructuredBuffer<int2> maxBlockBounds;
+
+//Velocity Data Buffer
+RWStructuredBuffer<VelocityData> setVelocityBuffer;
 
 // Some helper functions
 float4 GetColorFromType(int blockType)
@@ -180,6 +192,8 @@ void GetDeadBlocks(uint3 id : SV_DispatchThreadID)
 [numthreads(1, 1, 1)]
 void AssignBlockProperties(uint3 id : SV_DispatchThreadID)
 {
+    // Set Buffer
+    newBlockId[0] = deadBlocksCurated[0];
     // Set CONSTS
     blockBuffer[deadBlocksCurated[0]].ID = deadBlocksCurated[0];
 	blockBuffer[deadBlocksCurated[0]].type = newType;
@@ -400,12 +414,6 @@ void ConnectCellToCenter(uint3 id : SV_DispatchThreadID)
                         cellBuffer[cellId].connectedToCenter = 1;
                     }
                 }
-                //int gridId = width * currentGridPos.y + currentGridPos.x;
-
-                //if (grid[gridId].cells[i] > -1 && cellBuffer[grid[gridId].cells[i]].dead == 1)
-                //{
-                //    cellBuffer[cellId].connectedToCenter = 1;
-                //}
             }
         }
     }
@@ -436,6 +444,16 @@ void TickBlock(uint3 id : SV_DispatchThreadID)
 			blockBuffer[blockId].canMove = 1;
 		}
 	}
+}
+
+[numthreads(1, 1, 1)]
+void SetVelocityById(uint3 id : SV_DispatchThreadID)
+{
+    VelocityData data = setVelocityBuffer[id.x];
+    int blockId = data.blockId;
+    blockBuffer[blockId].velocityX = data.velocityX;
+    blockBuffer[blockId].velocityY = data.velocityY;
+    blockBuffer[blockId].currentTick = blockBuffer[blockId].moveTicks;
 }
 
 [numthreads(16, 1, 1)]
@@ -638,8 +656,8 @@ void LerpCells(uint3 id : SV_DispatchThreadID)
         int x = cellBuffer[cellId].gridPosX;
         int y = cellBuffer[cellId].gridPosY;
 
-        cellBuffer[cellId].lastX = cellBuffer[cellId].lastX + 5 * sign(x * scalingFactor - cellBuffer[cellId].lastX);
-        cellBuffer[cellId].lastY = cellBuffer[cellId].lastY + 5 * sign(y * scalingFactor - cellBuffer[cellId].lastY);
+        cellBuffer[cellId].lastX = cellBuffer[cellId].lastX + 20 * sign(x * scalingFactor - cellBuffer[cellId].lastX);
+        cellBuffer[cellId].lastY = cellBuffer[cellId].lastY + 20 * sign(y * scalingFactor - cellBuffer[cellId].lastY);
     }   
 }
 

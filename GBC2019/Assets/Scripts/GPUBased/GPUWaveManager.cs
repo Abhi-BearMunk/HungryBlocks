@@ -7,6 +7,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     public GridComputeOperator gridOperator;
     public GridManager grid;
     public LevelManager level;
+    public PlayerMovementController playerController;
     public int seed;
     private bool spawnWave;
 
@@ -23,6 +24,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     int spawnPowerUp = 0;
 
     bool specialShape;
+    bool playerSpawned;
     // Start is called before the first frame update
     void Start()
     {
@@ -37,6 +39,11 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
         if (spawnWave && spawnTimer <= 0)
         {
             Spawn8();
+            if(!playerSpawned)
+            {
+                SpawnPlayer();
+                playerSpawned = true;
+            }
             spawnPowerUp++;
             if (spawnPowerUp > 5)
             {
@@ -195,26 +202,31 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
             properties.subType = permutation2[i];
             properties.velocityX = i % 2 == 0 ? -1 : 1;
             properties.velocityY = 0;
-            gridOperator.CreateBlock(shape, new Vector2Int(gridOperator.width / 2 + (i % 2 == 0 ? 1 : -1) * (gridOperator.width / 2 + 5), Random.Range(-gridOperator.height / 8, gridOperator.height / 8) + gridOperator.height / 2 + (i <= 1 ? 1 : -1) * gridOperator.height / 4), properties);
+            int id = gridOperator.CreateBlock(shape, new Vector2Int(gridOperator.width / 2 + (i % 2 == 0 ? 1 : -1) * (gridOperator.width / 2 + 5), Random.Range(-gridOperator.height / 8, gridOperator.height / 8) + gridOperator.height / 2 + (i <= 1 ? 1 : -1) * gridOperator.height / 4), properties);
+            //if(playerController.playerId == 0)
+            //{
+            //    playerController.playerId = id;
+            //}
         }
     }
 
     void SpawnPlayer()
     {
-        Block block;
-        GameObject go;
+        BlockProperties properties;
+        properties.moveTicks = 10;
+        properties.velocityX = 1;
+        properties.velocityY = 0;
+        properties.type = Block.CellType.Player;
+        properties.subType = (Block.CellSubType)(Random.Range(1, 5));
+        properties.absorbPriority = 100;
+        properties.absorbType = 0;
+        properties.ignoreType = 0;
+        properties.canAbsorb = 1;
+        properties.CanBeAbsorbed = 0;
+        properties.KillNonMatching = 1;
+        properties.KillableByNonMatching = 1;
 
-        //go = new GameObject("Player", 
-        //                    typeof(PauseController),
-        //                    typeof(KillableByNonMatchingSubType), 
-        //                    typeof(KillNonMatchingSubType), 
-        //                    typeof(AbsorbMatchingSubtype), 
-        //                    typeof(BlockMover),
-        //                    typeof(MovementControl));
-        go = playerObject;
-        block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Dot], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() / 2), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
-        block.GetComponent<AbsorbData>().priority = 100;
-        block.GetComponent<BlockMover>().deltaTime = 0.1f;
+        playerController.playerId = gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Cross], new Vector2Int(gridOperator.width / 2, gridOperator.height / 2), properties);
     }
 
     Vector2Int SafeSpot()

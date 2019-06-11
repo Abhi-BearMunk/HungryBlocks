@@ -108,6 +108,18 @@ public struct int2
     }
 }
 
+struct VelocityData
+{
+    public int blockId;
+    public int velocityX;
+    public int velocityY;
+
+    public static int GetLength()
+    {
+        return sizeof(int) * 3;
+    }
+};
+
 public class GridComputeOperator : MonoBehaviour
 {
     public int width = 128;
@@ -125,6 +137,8 @@ public class GridComputeOperator : MonoBehaviour
     CellStruct[] cellArray;
     GridCell[] grid;
     int2[] maxBound;
+    int[] newBlockIdArray;
+    VelocityData[] setVelocityArray;
 
     ComputeBuffer blockBuffer;
     ComputeBuffer cellBuffer;
@@ -140,6 +154,8 @@ public class GridComputeOperator : MonoBehaviour
 
     ComputeBuffer maxBlockBounds;
 
+    ComputeBuffer setVelocityBuffer;
+
     int creationId = 0;
     // Start is called before the first frame update
     void Awake()
@@ -149,6 +165,8 @@ public class GridComputeOperator : MonoBehaviour
         cellArray = new CellStruct[width * height];
         grid = new GridCell[width * height];
         maxBound = new int2[1];
+        newBlockIdArray = new int[1];
+        setVelocityArray = new VelocityData[1];
 
         // Initialize buffers
         blockBuffer = new ComputeBuffer(width * height, BlockStruct.GetLength(), ComputeBufferType.Default);
@@ -162,12 +180,14 @@ public class GridComputeOperator : MonoBehaviour
         attatchBlocksBuffer.SetCounterValue(0);
         maxBlockBounds = new ComputeBuffer(1, sizeof(int) * 2, ComputeBufferType.Default);
         newBlockId = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Default);
+        setVelocityBuffer = new ComputeBuffer(1, VelocityData.GetLength(), ComputeBufferType.Default);
 
         // Set Buffers
         blockBuffer.SetData(blockArray);
         cellBuffer.SetData(cellArray);
         gridCellBuffer.SetData(grid);
         maxBlockBounds.SetData(maxBound);
+        newBlockId.SetData(newBlockIdArray);
 
         // Create and set render
         displayTexture = new RenderTexture(width * scalingFactor, height * scalingFactor, 24);
@@ -332,7 +352,7 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
     }
 
-    public void CreateBlock(List<Vector2Int> shapeDefinition, Vector2Int position, BlockProperties properties)
+    public int CreateBlock(List<Vector2Int> shapeDefinition, Vector2Int position, BlockProperties properties)
     {
         creationId++;
         // Copy shape onto a int2 array
@@ -384,7 +404,9 @@ public class GridComputeOperator : MonoBehaviour
         kernel = gridCruncher.FindKernel("AssignBlockProperties");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.SetBuffer(kernel, "deadBlocksCurated", deadBlocksBuffer);
+        gridCruncher.SetBuffer(kernel, "newBlockId", newBlockId);
         gridCruncher.Dispatch(kernel, 1, 1, 1);
+        newBlockId.GetData(newBlockIdArray);
 
         // Get all the dead cells
         kernel = gridCruncher.FindKernel("GetDeadCells");
@@ -402,6 +424,8 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.Dispatch(kernel, shape.Length / 8, 1, 1);
 
         RefreshGrid();
+
+        return newBlockIdArray[0];
     }
 
     void RefreshGrid()
@@ -452,16 +476,36 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
     }
 
-    void OnDestroy()
+    public void SetVelocity(int blockID, int velocityX, int velocityY)
+    {
+        setVelocityArray[0].blockId = blockID;
+        setVelocityArray[0].velocityX = velocityX;
+        setVelocityArray[0].velocityY = velocityY;
+        setVelocityBuffer.SetData(setVelocityArray);
 
+        int kernel = gridCruncher.FindKernel("SetVelocityById");
+        gridCruncher.SetBuffer(kernel, "setVelocityBuffer", setVelocityBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.Dispatch(kernel, 1, 1, 1);
+    }
+
+
+    void OnDestroy()
     {
         blockBuffer.Release();
         cellBuffer.Release();
         gridCellBuffer.Release();
-        newCellsBuffer.Release();
-        attatchBlocksBuffer.Release();
-        attatchBlocksRetrieveCountBuffer.Release();
+
         deadBlocksBuffer.Release();
         deadCellsBuffer.Release();
+        newCellsBuffer.Release();
+        newBlockId.Release();
+
+        attatchBlocksBuffer.Release();
+        attatchBlocksRetrieveCountBuffer.Release();
+
+        maxBlockBounds.Release();
+
+        setVelocityBuffer.Release();
     }
 }
