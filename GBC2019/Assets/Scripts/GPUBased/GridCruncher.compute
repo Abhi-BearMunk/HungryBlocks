@@ -8,6 +8,9 @@
 #pragma kernel FlushBlockBounds
 #pragma kernel UpdateBlockBounds
 #pragma kernel UpdateBlockCenters
+#pragma kernel GetBlockCenterCellDistance
+#pragma kernel GetBlockCenterGridID
+#pragma kernel GetBlockCenterCell
 #pragma kernel TickBlock
 #pragma kernel CheckBlockCollisions
 #pragma kernel UpdateAttatchBlockID
@@ -49,6 +52,9 @@ struct BlockStruct
     int CanBeAbsorbed;
     int KillNonMatching;
     int KillableByNonMatching;
+    int centerCellSquareDistance;
+    int centerGridID;
+    int centerCellID;
 };
 
 struct CellStruct
@@ -77,6 +83,8 @@ RWTexture2D<float4> Result;
 RWTexture2D<float4> DebugResult;
 Texture2D<float4> cellSprite;
 SamplerState sampler_cellSprite;
+Texture2D<float4> debugSprite;
+SamplerState sampler_debugSprite;
 int scalingFactor;
 
 // Core grid params
@@ -166,17 +174,14 @@ void GetDeadBlocks(uint3 id : SV_DispatchThreadID)
 [numthreads(1, 1, 1)]
 void AssignBlockProperties(uint3 id : SV_DispatchThreadID)
 {
+    // Set CONSTS
     blockBuffer[deadBlocksCurated[0]].ID = deadBlocksCurated[0];
 	blockBuffer[deadBlocksCurated[0]].type = newType;
 	blockBuffer[deadBlocksCurated[0]].subType = newSubType;
 	blockBuffer[deadBlocksCurated[0]].velocityX = newVelocityX;
 	blockBuffer[deadBlocksCurated[0]].velocityY = newVelocityY;
 	blockBuffer[deadBlocksCurated[0]].moveTicks = newMoveTicks;
-	blockBuffer[deadBlocksCurated[0]].currentTick = 0;
-	blockBuffer[deadBlocksCurated[0]].canMove = 0;
 	blockBuffer[deadBlocksCurated[0]].creationID = newCreationID;
-	blockBuffer[deadBlocksCurated[0]].attachToBlockId = -1;
-    blockBuffer[deadBlocksCurated[0]].attatched = 0;
     blockBuffer[deadBlocksCurated[0]].absorbPriority = newAbsorbPriority;
     blockBuffer[deadBlocksCurated[0]].absorbType = newAbsorbType;
     blockBuffer[deadBlocksCurated[0]].ignoreType = newIgnoreType;
@@ -184,6 +189,13 @@ void AssignBlockProperties(uint3 id : SV_DispatchThreadID)
     blockBuffer[deadBlocksCurated[0]].CanBeAbsorbed = newCanBeAbsorbed;
     blockBuffer[deadBlocksCurated[0]].KillNonMatching = newKillNonMatching;
     blockBuffer[deadBlocksCurated[0]].KillableByNonMatching = newKillableByNonMatching;
+    // Set Initializers
+    blockBuffer[deadBlocksCurated[0]].currentTick = 0;
+    blockBuffer[deadBlocksCurated[0]].canMove = 0;
+    blockBuffer[deadBlocksCurated[0]].attachToBlockId = -1;
+    blockBuffer[deadBlocksCurated[0]].centerCellSquareDistance = 10000;
+    blockBuffer[deadBlocksCurated[0]].centerGridID = width * height + 10000;
+    blockBuffer[deadBlocksCurated[0]].centerCellID = -1;
 	blockBuffer[deadBlocksCurated[0]].dead = 1;
 }
 
@@ -259,6 +271,10 @@ void FlushBlockBounds(uint3 id : SV_DispatchThreadID)
 	blockBuffer[blockId].right = -10000;
 	blockBuffer[blockId].up = -10000;
 	blockBuffer[blockId].down = 10000;
+    blockBuffer[blockId].attachToBlockId = -1;
+    blockBuffer[blockId].centerCellSquareDistance = 10000;
+    blockBuffer[blockId].centerGridID = width * height + 10000;
+    blockBuffer[blockId].centerCellID = -1;
 }
 
 [numthreads(16, 1, 1)]
@@ -284,6 +300,53 @@ void UpdateBlockCenters(uint3 id : SV_DispatchThreadID)
 		blockBuffer[blockId].centerX = floor((blockBuffer[blockId].left + blockBuffer[blockId].right) / 2);
 		blockBuffer[blockId].centerY = floor((blockBuffer[blockId].up + blockBuffer[blockId].down) / 2);
 	}
+}
+
+[numthreads(16, 1, 1)]
+void GetBlockCenterCellDistance(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    CellStruct cell = cellBuffer[cellId];
+    if (cell.dead == 1)
+    {
+        int temp;
+        BlockStruct block = blockBuffer[cellBuffer[cellId].parentBlockID];
+        InterlockedMin(blockBuffer[cellBuffer[cellId].parentBlockID].centerCellSquareDistance, (int)(pow(cell.gridPosX - block.centerX, 2) + pow(cell.gridPosY - block.centerY, 2)), temp);
+    }
+}
+
+[numthreads(16, 1, 1)]
+void GetBlockCenterGridID(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    CellStruct cell = cellBuffer[cellId];
+    if (cell.dead == 1)
+    {
+        int temp;
+        BlockStruct block = blockBuffer[cellBuffer[cellId].parentBlockID];
+        if ((int) (pow(cell.gridPosX - block.centerX, 2) + pow(cell.gridPosY - block.centerY, 2)) == block.centerCellSquareDistance)
+        {
+            int temp;
+            InterlockedMin(blockBuffer[cellBuffer[cellId].parentBlockID].centerGridID, width * cell.gridPosY + cell.gridPosX, temp);
+        }
+    }
+}
+
+[numthreads(16, 1, 1)]
+void GetBlockCenterCell(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    CellStruct cell = cellBuffer[cellId];
+    if (cell.dead == 1)
+    {
+        int temp;
+        BlockStruct block = blockBuffer[cellBuffer[cellId].parentBlockID];
+        if ((int) (pow(cell.gridPosX - block.centerX, 2) + pow(cell.gridPosY - block.centerY, 2)) == block.centerCellSquareDistance && width * cell.gridPosY + cell.gridPosX == block.centerGridID)
+        {
+            int temp;
+            InterlockedExchange(blockBuffer[cellBuffer[cellId].parentBlockID].centerCellID, cellId, temp);
+        }
+    }
 }
 
 [numthreads(16, 1, 1)]
@@ -474,7 +537,18 @@ void DisplayCells(uint3 id : SV_DispatchThreadID)
             {
                 float u = (float) id.x / (float) scalingFactor - (float) x;
                 float v = (float) id.y / (float) scalingFactor - (float) y;
-                Result[id.xy - int2(deltaX, deltaY)] = cellSprite.SampleLevel(sampler_cellSprite, float2(u, v), 3) * GetColorFromType(blockBuffer[cellBuffer[cellId].parentBlockID].subType);               
+                
+                Result[id.xy - int2(deltaX, deltaY)] = cellSprite.SampleLevel(sampler_cellSprite, float2(u, v), 3) * GetColorFromType(blockBuffer[cellBuffer[cellId].parentBlockID].subType);
+
+                if (cellId == blockBuffer[cellBuffer[cellId].parentBlockID].centerCellID)
+                {
+                    float4 col = debugSprite.SampleLevel(sampler_debugSprite, float2(u, v), 0);
+                    if(col.a > 0)
+                    {
+                        Result[id.xy - int2(deltaX, deltaY)] = debugSprite.SampleLevel(sampler_debugSprite, float2(u, v), 0);
+                    }
+                    break;
+                }
             }
         }
     }

@@ -45,10 +45,13 @@ public struct BlockStruct
     public int CanBeAbsorbed;//22
     public int KillNonMatching;//23
     public int KillableByNonMatching;//24
+    public int centerCellSquareDistance;//25
+    public int centerGridID;//26
+    public int centerCellID;//27
 
     public static int GetLength()
     {
-        return sizeof(int) * 25;
+        return sizeof(int) * 28;
     }
 }
 
@@ -110,6 +113,7 @@ public class GridComputeOperator : MonoBehaviour
     public int height = 72;
     public int scalingFactor = 20;
     public Texture2D cellSprite;
+    public Texture2D debugSprite;
     public Renderer rend;
     public Renderer debugRend;
     public RenderTexture displayTexture;
@@ -176,9 +180,6 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetInt("width", width);
         gridCruncher.SetInt("height", height);
         gridCruncher.SetInt("scalingFactor", scalingFactor);
-
-
-        //CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(20, 20), Block.CellType.Enemy, Block.CellSubType.Y);
     }
 
     // Update is called once per frame
@@ -235,9 +236,6 @@ public class GridComputeOperator : MonoBehaviour
                 attatchBlocksCurated[attatchBlocksCurated.Length - i - 1].x = -1;
                 attatchBlocksCurated[attatchBlocksCurated.Length - i - 1].y = -1;
             }
-            //attatchBlocksBuffer.SetCounterValue(0);
-            //attatchBlocksSetDataBuffer.Release();
-            //attatchBlocksSetDataBuffer = new ComputeBuffer(attatchBlocksCurated.Length, sizeof(int) * 2, ComputeBufferType.Default);
             attatchBlocksBuffer.SetData(attatchBlocksCurated);
 
             kernel = gridCruncher.FindKernel("UpdateAttatchBlockID");
@@ -290,6 +288,21 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.Dispatch(kernel, blockArray.Length / 16, 1, 1);
 
+        kernel = gridCruncher.FindKernel("GetBlockCenterCellDistance");
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+
+        kernel = gridCruncher.FindKernel("GetBlockCenterGridID");
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+
+        kernel = gridCruncher.FindKernel("GetBlockCenterCell");
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+
         kernel = gridCruncher.FindKernel("ClearDisplay");
         gridCruncher.SetTexture(kernel, "Result", displayTexture);
         gridCruncher.Dispatch(kernel, (width * scalingFactor) / 16, (height * scalingFactor) / 9, 1);
@@ -297,6 +310,7 @@ public class GridComputeOperator : MonoBehaviour
         kernel = gridCruncher.FindKernel("DisplayCells");
         gridCruncher.SetTexture(kernel, "Result", displayTexture);
         gridCruncher.SetTexture(kernel, "cellSprite", cellSprite);
+        gridCruncher.SetTexture(kernel, "debugSprite", debugSprite);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
