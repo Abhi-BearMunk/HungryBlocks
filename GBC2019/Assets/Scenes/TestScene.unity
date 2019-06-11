@@ -166,10 +166,11 @@ MonoBehaviour:
   gridOperator: {fileID: 604209655}
   grid: {fileID: 0}
   level: {fileID: 0}
-  initialNumber: 10000
+  seed: 0
+  initialNumber: 1000
   spawnTime: 1
   playerObject: {fileID: 0}
-  shape: 0
+  shape: 11
 --- !u!1 &70971248
 GameObject:
   m_ObjectHideFlags: 0
@@ -264,7 +265,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &109725480
 Transform:
   m_ObjectHideFlags: 0
@@ -783,7 +784,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &527207195
 Transform:
   m_ObjectHideFlags: 0
@@ -907,11 +908,11 @@ PrefabInstance:
         type: 3}
       propertyPath: cellSprite
       value: 
-      objectReference: {fileID: 2800000, guid: 6f76e0927672fe04e8ddca157aa929af, type: 3}
+      objectReference: {fileID: 2800000, guid: f95e6243a4708db4f853a62b78331db9, type: 3}
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
       propertyPath: scalingFactor
-      value: 10
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
@@ -921,13 +922,18 @@ PrefabInstance:
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
       propertyPath: width
-      value: 1024
+      value: 128
       objectReference: {fileID: 0}
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
       propertyPath: height
-      value: 576
+      value: 72
       objectReference: {fileID: 0}
+    - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
+        type: 3}
+      propertyPath: debugSprite
+      value: 
+      objectReference: {fileID: 2800000, guid: a9021a0f455e9664faa44732ee3c523c, type: 3}
     m_RemovedComponents:
     - {fileID: 6670114014473361629, guid: 7e8ffd27267e0e14dba2833683cbed70, type: 3}
   m_SourcePrefab: {fileID: 100100000, guid: 7e8ffd27267e0e14dba2833683cbed70, type: 3}
@@ -1363,7 +1369,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &773834871
 Transform:
   m_ObjectHideFlags: 0
@@ -2583,7 +2589,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1382342996
 Transform:
   m_ObjectHideFlags: 0
@@ -3096,7 +3102,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1641706914
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3109,8 +3115,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e01d590e7c44c646b789641b44f1365, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 512
-  height: 288
+  width: 128
+  height: 72
   OnInitializeGrid:
     m_PersistentCalls:
       m_Calls:
@@ -4796,7 +4802,7 @@ PrefabInstance:
     - target: {fileID: 2143516640810509173, guid: be1166d40c3304440b8a40b26d966d76,
         type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2143516640810509182, guid: be1166d40c3304440b8a40b26d966d76,
         type: 3}

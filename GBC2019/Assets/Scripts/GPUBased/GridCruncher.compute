@@ -7,10 +7,13 @@
 #pragma kernel UpdateGridDataAtIndex
 #pragma kernel FlushBlockBounds
 #pragma kernel UpdateBlockBounds
-#pragma kernel UpdateBlockCenters
+#pragma kernel UpdateBlockCentersAndMaxBlockBound
 #pragma kernel GetBlockCenterCellDistance
 #pragma kernel GetBlockCenterGridID
 #pragma kernel GetBlockCenterCell
+#pragma kernel ResetCellConnctionsToCenter
+#pragma kernel ConnectCellToCenter
+#pragma kernel DestroyDisconnectedCells
 #pragma kernel TickBlock
 #pragma kernel CheckBlockCollisions
 #pragma kernel UpdateAttatchBlockID
@@ -72,6 +75,7 @@ struct CellStruct
     int rotTicks;
     int lastX;
     int lastY;
+    int connectedToCenter;
 };
 
 struct GridCell
@@ -112,6 +116,8 @@ int newCanBeAbsorbed;
 int newKillNonMatching;
 int newKillableByNonMatching;
 RWStructuredBuffer<int2> newCells;
+AppendStructuredBuffer<int2> attatchBlocksBuffer : register(u6);
+RWStructuredBuffer<int2> attatchBlocksBufferCurated : register(u7);
 
 // Update Grid Data Params
 int gridCellIndex;
@@ -122,8 +128,8 @@ AppendStructuredBuffer<int> deadCellsBuffer : register(u5);
 RWStructuredBuffer<int> deadBlocksCurated : register(u4);
 RWStructuredBuffer<int> deadCellsCurated : register(u5);
 
-AppendStructuredBuffer<int2> attatchBlocksBuffer : register(u6);
-RWStructuredBuffer<int2> attatchBlocksBufferCurated : register(u7);
+// Disconnected Cells Params
+RWStructuredBuffer<int2> maxBlockBounds;
 
 // Some helper functions
 float4 GetColorFromType(int blockType)
@@ -224,6 +230,7 @@ void AddCells(uint3 id : SV_DispatchThreadID)
 		cellBuffer[cellId].dead = 1;
         cellBuffer[cellId].dying = 0;
         cellBuffer[cellId].rotTicks = 0;
+        cellBuffer[cellId].connectedToCenter = 0;
     }	
 }
 
@@ -292,14 +299,16 @@ void UpdateBlockBounds(uint3 id : SV_DispatchThreadID)
 }
 
 [numthreads(16, 1, 1)]
-void UpdateBlockCenters(uint3 id : SV_DispatchThreadID)
+void UpdateBlockCentersAndMaxBlockBound(uint3 id : SV_DispatchThreadID)
 {
 	int blockId = id.x;
 	if (blockBuffer[blockId].dead == 1)
 	{
 		blockBuffer[blockId].centerX = floor((blockBuffer[blockId].left + blockBuffer[blockId].right) / 2);
 		blockBuffer[blockId].centerY = floor((blockBuffer[blockId].up + blockBuffer[blockId].down) / 2);
-	}
+        InterlockedMax(maxBlockBounds[0].x, (int) (blockBuffer[blockId].right - blockBuffer[blockId].left));
+        InterlockedMax(maxBlockBounds[0].y, (int) (blockBuffer[blockId].up - blockBuffer[blockId].left));
+    }
 }
 
 [numthreads(16, 1, 1)]
@@ -346,6 +355,72 @@ void GetBlockCenterCell(uint3 id : SV_DispatchThreadID)
             int temp;
             InterlockedExchange(blockBuffer[cellBuffer[cellId].parentBlockID].centerCellID, cellId, temp);
         }
+    }
+}
+
+[numthreads(16, 1, 1)]
+void ResetCellConnctionsToCenter(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    cellBuffer[cellId].connectedToCenter = 0;
+    if(cellId == blockBuffer[cellBuffer[cellId].parentBlockID].centerCellID)
+    {
+        cellBuffer[cellId].connectedToCenter = 1;
+    }
+}
+
+[numthreads(16, 1, 1)]
+void ConnectCellToCenter(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    CellStruct cell = cellBuffer[cellId];
+    BlockStruct block = blockBuffer[cell.parentBlockID];
+    if (cell.dead == 1)
+    {
+        int2 gridPos = int2(cellBuffer[cellId].gridPosX, cellBuffer[cellId].gridPosY);
+        int2 neighBours[8] = { gridPos + int2(-1, -1), 
+                               gridPos + int2(0, -1),
+                               gridPos + int2(1, -1),
+                               gridPos + int2(-1, 0),
+                               gridPos + int2(1, 0),
+                               gridPos + int2(-1, 1),
+                               gridPos + int2(0, 1),
+                               gridPos + int2(1, 1)};
+
+        for (int i = 0; i < 10; i++)
+        {
+            for (int j = 0; j < 8; j++)
+            {
+                int2 currentGridPos = neighBours[j];
+                if (InGridBounds(currentGridPos.x, currentGridPos.y))
+                {
+                    int gridId = width * currentGridPos.y + currentGridPos.x;
+                    if (grid[gridId].cells[i] > -1 && cellBuffer[grid[gridId].cells[i]].dead == 1 && cellBuffer[grid[gridId].cells[i]].parentBlockID == cellBuffer[cellId].parentBlockID && cellBuffer[grid[gridId].cells[i]].connectedToCenter == 1)
+                    {
+                        cellBuffer[cellId].connectedToCenter = 1;
+                    }
+                }
+                //int gridId = width * currentGridPos.y + currentGridPos.x;
+
+                //if (grid[gridId].cells[i] > -1 && cellBuffer[grid[gridId].cells[i]].dead == 1)
+                //{
+                //    cellBuffer[cellId].connectedToCenter = 1;
+                //}
+            }
+        }
+    }
+}
+
+[numthreads(16, 1, 1)]
+void DestroyDisconnectedCells(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    CellStruct cell = cellBuffer[cellId];
+    BlockStruct block = blockBuffer[cell.parentBlockID];
+    if (cellBuffer[cellId].dead == 1 && cellBuffer[cellId].connectedToCenter == 0 && InGridBounds(cell.gridPosX, cell.gridPosY) && block.centerCellID > -1 && InGridBounds(cellBuffer[block.centerCellID].gridPosX, cellBuffer[block.centerCellID].gridPosY))
+    {
+        cellBuffer[cellId].dead = 0;
+        cellBuffer[cellId].dying = 1;
     }
 }
 
@@ -563,8 +638,8 @@ void LerpCells(uint3 id : SV_DispatchThreadID)
         int x = cellBuffer[cellId].gridPosX;
         int y = cellBuffer[cellId].gridPosY;
 
-        cellBuffer[cellId].lastX = cellBuffer[cellId].lastX + 20 * sign(x * scalingFactor - cellBuffer[cellId].lastX);
-        cellBuffer[cellId].lastY = cellBuffer[cellId].lastY + 20 * sign(y * scalingFactor - cellBuffer[cellId].lastY);
+        cellBuffer[cellId].lastX = cellBuffer[cellId].lastX + 5 * sign(x * scalingFactor - cellBuffer[cellId].lastX);
+        cellBuffer[cellId].lastY = cellBuffer[cellId].lastY + 5 * sign(y * scalingFactor - cellBuffer[cellId].lastY);
     }   
 }
 
@@ -577,8 +652,6 @@ void DisplayDyingCells(uint3 id : SV_DispatchThreadID)
         float theta = (float) cellBuffer[cellId].rotTicks * 0.5;
         float scale = 1.5 - 0.01 * (float) cellBuffer[cellId].rotTicks;
         float offset = 2 * (float) cellBuffer[cellId].rotTicks;
-        float offsetX = (id.x > (float) scalingFactor * 0.5) ? offset : -offset;
-        float offsetY = (id.y > (float) scalingFactor * 0.5) ? offset : -offset;
         float originalX = id.x - (float) scalingFactor * 0.5;
         float originalY = id.y - (float) scalingFactor * 0.5;
         float newX = originalX * cos(theta) - originalY * sin(theta);

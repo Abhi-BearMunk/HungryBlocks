@@ -7,6 +7,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     public GridComputeOperator gridOperator;
     public GridManager grid;
     public LevelManager level;
+    public int seed;
     private bool spawnWave;
 
     public int initialNumber = 10;
@@ -26,6 +27,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     void Start()
     {
         specialShape = true;
+        //Random.InitState(seed);
     }
 
     // Update is called once per frame
