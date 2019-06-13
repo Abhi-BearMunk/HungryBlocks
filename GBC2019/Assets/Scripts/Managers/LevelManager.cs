@@ -7,7 +7,9 @@ public class LevelManager : MonoBehaviour
     public GridManager grid;
     //public GridVisualizer gridVisualizer;
     public GameObject waveManagerObject;
+    public GameObject waveManagerObject2;
     public IWaveManager waveManager;
+    public IWaveManager waveManager2;
     public List<RectInt> safeSpawnRegions;
 
     public bool paused;
@@ -15,6 +17,10 @@ public class LevelManager : MonoBehaviour
     void Start()
     {
         waveManager = waveManagerObject.GetComponent<IWaveManager>();
+        if(waveManagerObject2)
+        {
+            waveManager2 = waveManagerObject2.GetComponent<IWaveManager>();
+        }
         StartLevel();
     }
 
@@ -31,5 +37,9 @@ public class LevelManager : MonoBehaviour
         grid.InitializeGrid();
         //gridVisualizer.SpawnGridVisuals();
         waveManager.InitiateWave();
+        if(waveManager2 != null)
+        {
+            waveManager2.InitiateWave();
+        }
     }
 }

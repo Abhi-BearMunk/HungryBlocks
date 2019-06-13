@@ -10,12 +10,13 @@ public struct BlockProperties
     public int velocityY;
     public int moveTicks;
     public int absorbPriority;
-    public int absorbType;
+    public int absorbType;// 0- Enemy, 1-Player1, 2 - Player1Bullets
     public int ignoreType;
     public int canAbsorb;
     public int CanBeAbsorbed;
     public int KillNonMatching;
     public int KillableByNonMatching;
+    public int isGrenade;
 }
 
 public struct BlockStruct
@@ -48,10 +49,13 @@ public struct BlockStruct
     public int centerCellSquareDistance;//25
     public int centerGridID;//26
     public int centerCellID;//27
+    public int rotateDirection;//28
+    public int aboutToDie;//29
+    public int isGrenade;//30
 
     public static int GetLength()
     {
-        return sizeof(int) * 28;
+        return sizeof(int) * 31;
     }
 }
 
@@ -68,13 +72,13 @@ public struct CellStruct
     public int up;//8
     public int down;//9
     public int rotTicks;//10
-    public int lastX;//11
-    public int lastY;//12
+    public float lastX;//11
+    public float lastY;//12
     public int connectedToCenter;//13
 
     public static int GetLength()
     {
-        return sizeof(int) * 14;
+        return sizeof(int) * 12 + sizeof(float) * 2;
     }
 }
 
@@ -97,6 +101,7 @@ public struct GridCell
     }
 }
 
+[System.Serializable]
 public struct int2
 {
     public int x;
@@ -108,15 +113,34 @@ public struct int2
     }
 }
 
-struct VelocityData
+struct TransformData
 {
     public int blockId;
     public int velocityX;
     public int velocityY;
+    public int rotation;
 
     public static int GetLength()
     {
-        return sizeof(int) * 3;
+        return sizeof(int) * 4;
+    }
+};
+
+struct PlayerAimData
+{
+    uint direction0;
+    uint direction1;
+    uint direction2;
+    uint direction3;
+    uint direction4;
+    uint direction5;
+    uint direction6;
+    uint direction7;
+    uint direction8;
+
+    public static int GetLength()
+    {
+        return sizeof(uint) * 9;
     }
 };
 
@@ -125,20 +149,28 @@ public class GridComputeOperator : MonoBehaviour
     public int width = 128;
     public int height = 72;
     public int scalingFactor = 20;
+    public int grenadeDetonationRadius = 8;
     public Texture2D cellSprite;
     public Texture2D debugSprite;
+    public Texture2D arrowSprite;
+    public Texture2D reticleSprite;
     public Renderer rend;
     public Renderer debugRend;
     public RenderTexture displayTexture;
     public RenderTexture debugTexture;
     public ComputeShader gridCruncher;
 
+    public int player1ID = -1;
+    public int2 player1AimDirection;
+    List<TransformData> movementQueue = new List<TransformData>();
+
     BlockStruct[] blockArray;
     CellStruct[] cellArray;
     GridCell[] grid;
     int2[] maxBound;
     int[] newBlockIdArray;
-    VelocityData[] setVelocityArray;
+    TransformData[] setVelocityArray;
+    PlayerAimData[] playerAimDataArray;
 
     ComputeBuffer blockBuffer;
     ComputeBuffer cellBuffer;
@@ -156,6 +188,8 @@ public class GridComputeOperator : MonoBehaviour
 
     ComputeBuffer setVelocityBuffer;
 
+    ComputeBuffer playerAimDataBuffer;
+
     int creationId = 0;
     // Start is called before the first frame update
     void Awake()
@@ -166,7 +200,8 @@ public class GridComputeOperator : MonoBehaviour
         grid = new GridCell[width * height];
         maxBound = new int2[1];
         newBlockIdArray = new int[1];
-        setVelocityArray = new VelocityData[1];
+        setVelocityArray = new TransformData[1];
+        playerAimDataArray = new PlayerAimData[1];
 
         // Initialize buffers
         blockBuffer = new ComputeBuffer(width * height, BlockStruct.GetLength(), ComputeBufferType.Default);
@@ -180,14 +215,15 @@ public class GridComputeOperator : MonoBehaviour
         attatchBlocksBuffer.SetCounterValue(0);
         maxBlockBounds = new ComputeBuffer(1, sizeof(int) * 2, ComputeBufferType.Default);
         newBlockId = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Default);
-        setVelocityBuffer = new ComputeBuffer(1, VelocityData.GetLength(), ComputeBufferType.Default);
-
+        setVelocityBuffer = new ComputeBuffer(1, TransformData.GetLength(), ComputeBufferType.Default);
+        playerAimDataBuffer = new ComputeBuffer(1, PlayerAimData.GetLength(), ComputeBufferType.Default);
         // Set Buffers
         blockBuffer.SetData(blockArray);
         cellBuffer.SetData(cellArray);
         gridCellBuffer.SetData(grid);
         maxBlockBounds.SetData(maxBound);
         newBlockId.SetData(newBlockIdArray);
+        playerAimDataBuffer.SetData(playerAimDataArray);
 
         // Create and set render
         displayTexture = new RenderTexture(width * scalingFactor, height * scalingFactor, 24);
@@ -195,6 +231,7 @@ public class GridComputeOperator : MonoBehaviour
         displayTexture.format = RenderTextureFormat.ARGB64;
         displayTexture.antiAliasing = 8;
         displayTexture.filterMode = FilterMode.Trilinear;
+        displayTexture.wrapMode = TextureWrapMode.Repeat;
         displayTexture.Create();
         rend.material.mainTexture = displayTexture;
 
@@ -208,14 +245,30 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetInt("width", width);
         gridCruncher.SetInt("height", height);
         gridCruncher.SetInt("scalingFactor", scalingFactor);
+        gridCruncher.SetInt("detonationRadius", grenadeDetonationRadius);
     }
 
     // Update is called once per frame
-    void FixedUpdate()
+    void Update()
     {
+        foreach(TransformData data in movementQueue)
+        {
+            setVelocityArray[0].blockId = data.blockId;
+            setVelocityArray[0].velocityX = data.velocityX;
+            setVelocityArray[0].velocityY = data.velocityY;
+            setVelocityArray[0].rotation = data.rotation;
+            setVelocityBuffer.SetData(setVelocityArray);
+
+            int velocityKernel = gridCruncher.FindKernel("SetVelocityAndRotationById");
+            gridCruncher.SetBuffer(velocityKernel, "setVelocityBuffer", setVelocityBuffer);
+            gridCruncher.SetBuffer(velocityKernel, "blockBuffer", blockBuffer);
+            gridCruncher.Dispatch(velocityKernel, 1, 1, 1);
+        }
+        movementQueue.Clear();
+
         int kernel = gridCruncher.FindKernel("TickBlock");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, blockArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, blockArray.Length / 64, 1, 1);
 
         attatchBlocksBuffer.SetCounterValue(0);
 
@@ -224,7 +277,7 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
         gridCruncher.SetBuffer(kernel, "attatchBlocksBuffer", attatchBlocksBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
         ComputeBuffer.CopyCount(attatchBlocksBuffer, attatchBlocksRetrieveCountBuffer, 0);
         int[] counter = new int[1] { 0 };
@@ -249,17 +302,17 @@ public class GridComputeOperator : MonoBehaviour
                     value = attatchBlocksDictionary[blockPair.x];
                 }
             }
-            int multipleOf8Offset = 8 - (attatchBlocks.Length % 8);
-            multipleOf8Offset = multipleOf8Offset == 8 ? 0 : multipleOf8Offset;
+            int multipleOf64Offset = 64 - (attatchBlocks.Length % 64);
+            multipleOf64Offset = multipleOf64Offset == 64 ? 0 : multipleOf64Offset;
 
-            int2[] attatchBlocksCurated = new int2[attatchBlocks.Length + multipleOf8Offset];
+            int2[] attatchBlocksCurated = new int2[attatchBlocks.Length + multipleOf64Offset];
             for (int i = 0; i < attatchBlocks.Length; i++)
             {
                 attatchBlocksCurated[i].x = attatchBlocks[i].x;
                 attatchBlocksCurated[i].y = attatchBlocksDictionary[attatchBlocks[i].x];
             }
 
-            for (int i = 0; i < multipleOf8Offset; i++)
+            for (int i = 0; i < multipleOf64Offset; i++)
             {
                 attatchBlocksCurated[attatchBlocksCurated.Length - i - 1].x = -1;
                 attatchBlocksCurated[attatchBlocksCurated.Length - i - 1].y = -1;
@@ -269,7 +322,7 @@ public class GridComputeOperator : MonoBehaviour
             kernel = gridCruncher.FindKernel("UpdateAttatchBlockID");
             gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
             gridCruncher.SetBuffer(kernel, "attatchBlocksBufferCurated", attatchBlocksBuffer);
-            gridCruncher.Dispatch(kernel, attatchBlocksCurated.Length / 8, 1, 1);
+            gridCruncher.Dispatch(kernel, attatchBlocksCurated.Length / 64, 1, 1);
 
             kernel = gridCruncher.FindKernel("AttatchBlockCells");
             gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
@@ -281,7 +334,7 @@ public class GridComputeOperator : MonoBehaviour
         kernel = gridCruncher.FindKernel("MoveCells");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
         RefreshGrid();
 
@@ -289,44 +342,73 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+
+        kernel = gridCruncher.FindKernel("PostMoveKillOutgoingCells");
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
         RefreshGrid();
-
         RefreshBlocks();
 
         kernel = gridCruncher.FindKernel("ResetCellConnctionsToCenter");
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
         maxBlockBounds.GetData(maxBound);
-        int maxDim = Mathf.Max(maxBound[0].x, maxBound[0].y);
+        int maxDim = maxBound[0].x + maxBound[0].y;
+        Debug.Log("MAX DIMENSIONS : X = " + maxBound[0].x + ", Y = " + maxBound[0].y);
         for (int i = 0; i < maxDim; i++)
         {
             kernel = gridCruncher.FindKernel("ConnectCellToCenter");
             gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
             gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-            gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+            gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
         }
 
         kernel = gridCruncher.FindKernel("DestroyDisconnectedCells");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
-        RefreshGrid();
+        // Grenade
+        kernel = gridCruncher.FindKernel("Detonate");
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+        gridCruncher.Dispatch(kernel, grenadeDetonationRadius * 2 + 1, grenadeDetonationRadius * 2 + 1, blockArray.Length / 64);
+
         RefreshBlocks();
+        RefreshGrid();
+
 
         kernel = gridCruncher.FindKernel("ResetBlockDeathAndMove");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, blockArray.Length / 16, 1, 1);
+        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+        gridCruncher.Dispatch(kernel, blockArray.Length / 64, 1, 1);
 
         kernel = gridCruncher.FindKernel("RefreshBlockDeath");
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
+
+
+        RefreshBlocks();
+        RefreshGrid();
+
+        kernel = gridCruncher.FindKernel("ResetBlockDeathAndMove");
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+        gridCruncher.Dispatch(kernel, blockArray.Length / 64, 1, 1);
+
+        kernel = gridCruncher.FindKernel("RefreshBlockDeath");
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+
+        // DRAW
         kernel = gridCruncher.FindKernel("ClearDisplay");
         gridCruncher.SetTexture(kernel, "Result", displayTexture);
         gridCruncher.Dispatch(kernel, (width * scalingFactor) / 16, (height * scalingFactor) / 9, 1);
@@ -334,7 +416,7 @@ public class GridComputeOperator : MonoBehaviour
         kernel = gridCruncher.FindKernel("DisplayCells");
         gridCruncher.SetTexture(kernel, "Result", displayTexture);
         gridCruncher.SetTexture(kernel, "cellSprite", cellSprite);
-        gridCruncher.SetTexture(kernel, "debugSprite", debugSprite);
+        //gridCruncher.SetTexture(kernel, "debugSprite", debugSprite);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
@@ -348,16 +430,40 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.Dispatch(kernel, (scalingFactor) / 10, (scalingFactor) / 10, cellArray.Length / 8);
 
         kernel = gridCruncher.FindKernel("LerpCells");
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+
+        if(player1AimDirection.x != 0 || player1AimDirection.y != 0 && player1ID > -1)
+        {
+            kernel = gridCruncher.FindKernel("DisplayAimReticle");
+            gridCruncher.SetInts("aimDirection", new int[2] { player1AimDirection.x, player1AimDirection.y });
+            gridCruncher.SetFloat("aimArrowNormalizedSize", 1);
+            gridCruncher.SetInt("player1ID", player1ID);
+            gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer); 
+            gridCruncher.SetBuffer(kernel, "playerAimData", playerAimDataBuffer);
+            gridCruncher.SetTexture(kernel, "arrowSprite", arrowSprite);
+            gridCruncher.SetTexture(kernel, "reticleSprite", reticleSprite);
+            gridCruncher.SetTexture(kernel, "Result", displayTexture);
+            gridCruncher.Dispatch(kernel, scalingFactor / 10, scalingFactor / 10, Mathf.Max(width, height) / 8);
+        }
+
+        kernel = gridCruncher.FindKernel("DisplayCenterPins");
+        gridCruncher.SetTexture(kernel, "Result", displayTexture);
+        //gridCruncher.SetTexture(kernel, "cellSprite", cellSprite);
+        gridCruncher.SetTexture(kernel, "debugSprite", debugSprite);
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.Dispatch(kernel, (width * scalingFactor) / 16, (height * scalingFactor) / 9, 1);
     }
 
-    public int CreateBlock(List<Vector2Int> shapeDefinition, Vector2Int position, BlockProperties properties)
+    public int CreateBlock(List<Vector2Int> shapeDefinition, Vector2Int position, BlockProperties properties, int relativeBlockID = -1)
     {
         creationId++;
         // Copy shape onto a int2 array
-        int paddingToMakeItMultipleOf8 = 8 - (shapeDefinition.Count % 8);
-        int2[] shape = new int2[shapeDefinition.Count + paddingToMakeItMultipleOf8];
+        int paddingToMakeItMultipleOf64 = 64 - (shapeDefinition.Count % 64);
+        int2[] shape = new int2[shapeDefinition.Count + paddingToMakeItMultipleOf64];
         int index = 0;
         foreach(Vector2Int v in shapeDefinition)
         {
@@ -386,6 +492,8 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetInt("newCanBeAbsorbed", properties.CanBeAbsorbed);
         gridCruncher.SetInt("newKillNonMatching", properties.KillNonMatching);
         gridCruncher.SetInt("newKillableByNonMatching", properties.KillableByNonMatching);
+        gridCruncher.SetInt("newIsGrenade", properties.isGrenade);
+        gridCruncher.SetInt("spawnRelativeBlockID", relativeBlockID);
 
         // Reset the new cell buffer
         newCellsBuffer.SetData(shape);
@@ -398,7 +506,7 @@ public class GridComputeOperator : MonoBehaviour
         int kernel = gridCruncher.FindKernel("GetDeadBlocks");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.SetBuffer(kernel, "deadBlocksBuffer", deadBlocksBuffer);
-        gridCruncher.Dispatch(kernel, blockArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, blockArray.Length / 64, 1, 1);
 
         // Assign properties of the new block
         kernel = gridCruncher.FindKernel("AssignBlockProperties");
@@ -412,16 +520,17 @@ public class GridComputeOperator : MonoBehaviour
         kernel = gridCruncher.FindKernel("GetDeadCells");
         gridCruncher.SetBuffer(kernel, "deadCellsBuffer", deadCellsBuffer);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
         // Add the new cells and set their properties
         kernel = gridCruncher.FindKernel("AddCells");
         gridCruncher.SetBuffer(kernel, "newCells", newCellsBuffer);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         //deadCellsBuffer.SetCounterValue((uint)shape.Length);
         gridCruncher.SetBuffer(kernel, "deadBlocksCurated", deadBlocksBuffer);
         gridCruncher.SetBuffer(kernel, "deadCellsCurated", deadCellsBuffer);
-        gridCruncher.Dispatch(kernel, shape.Length / 8, 1, 1);
+        gridCruncher.Dispatch(kernel, shape.Length / 64, 1, 1);
 
         RefreshGrid();
 
@@ -432,7 +541,7 @@ public class GridComputeOperator : MonoBehaviour
     {
         int kernel = gridCruncher.FindKernel("FlushGridData");
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-        gridCruncher.Dispatch(kernel, width / 16, height / 9, 1);
+        gridCruncher.Dispatch(kernel, width / 64, height / 9, 1);
 
         for(int i = 0; i < 10; i++)
         {
@@ -440,7 +549,7 @@ public class GridComputeOperator : MonoBehaviour
             kernel = gridCruncher.FindKernel("UpdateGridDataAtIndex");
             gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
             gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-            gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+            gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
         }
     }
 
@@ -448,45 +557,58 @@ public class GridComputeOperator : MonoBehaviour
     {
         int kernel = gridCruncher.FindKernel("FlushBlockBounds");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, blockArray.Length / 16, 1, 1);
+        gridCruncher.SetBuffer(kernel, "maxBlockBounds", maxBlockBounds);
+        gridCruncher.SetBuffer(kernel, "playerAimData", playerAimDataBuffer);
+        gridCruncher.Dispatch(kernel, blockArray.Length / 64, 1, 1);
 
-        kernel = gridCruncher.FindKernel("UpdateBlockBounds");
+        kernel = gridCruncher.FindKernel("UpdateBlockBoundsAndOtherEndPhaseData");
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.SetBuffer(kernel, "playerAimData", playerAimDataBuffer);
+        gridCruncher.SetInt("player1ID", player1ID);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+        //playerAimDataBuffer.GetData(playerAimDataArray);
 
         kernel = gridCruncher.FindKernel("UpdateBlockCentersAndMaxBlockBound");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.SetBuffer(kernel, "maxBlockBounds", maxBlockBounds);
-        gridCruncher.Dispatch(kernel, blockArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, blockArray.Length / 64, 1, 1);
 
         kernel = gridCruncher.FindKernel("GetBlockCenterCellDistance");
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
         kernel = gridCruncher.FindKernel("GetBlockCenterGridID");
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
         kernel = gridCruncher.FindKernel("GetBlockCenterCell");
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 16, 1, 1);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
     }
 
-    public void SetVelocity(int blockID, int velocityX, int velocityY)
+    public void SetVelocity(int blockID, int velocityX, int velocityY, int rotation)
     {
-        setVelocityArray[0].blockId = blockID;
-        setVelocityArray[0].velocityX = velocityX;
-        setVelocityArray[0].velocityY = velocityY;
-        setVelocityBuffer.SetData(setVelocityArray);
+        TransformData data;
 
-        int kernel = gridCruncher.FindKernel("SetVelocityById");
-        gridCruncher.SetBuffer(kernel, "setVelocityBuffer", setVelocityBuffer);
-        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, 1, 1, 1);
+        data.blockId = blockID;
+        data.velocityX = velocityX;
+        data.velocityY = velocityY;
+        data.rotation = rotation;
+
+        movementQueue.Add(data);
+
+        //FixedUpdate();
+
+        //setVelocityBuffer.SetData(setVelocityArray);
+
+        //int kernel = gridCruncher.FindKernel("SetVelocityAndRotationById");
+        //gridCruncher.SetBuffer(kernel, "setVelocityBuffer", setVelocityBuffer);
+        //gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        //gridCruncher.Dispatch(kernel, 1, 1, 1);
     }
 
 
@@ -507,5 +629,6 @@ public class GridComputeOperator : MonoBehaviour
         maxBlockBounds.Release();
 
         setVelocityBuffer.Release();
+        playerAimDataBuffer.Release();
     }
 }

@@ -28,7 +28,7 @@ public class WaveManager : MonoBehaviour, IWaveManager
     // Start is called before the first frame update
     void Start()
     {
-        specialShape = true;
+        //specialShape = true;
     }
 
     // Update is called once per frame

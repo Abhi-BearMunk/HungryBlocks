@@ -913,7 +913,7 @@ PrefabInstance:
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
       propertyPath: scalingFactor
-      value: 80
+      value: 40
       objectReference: {fileID: 0}
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
@@ -935,6 +935,16 @@ PrefabInstance:
       propertyPath: debugSprite
       value: 
       objectReference: {fileID: 2800000, guid: a9021a0f455e9664faa44732ee3c523c, type: 3}
+    - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
+        type: 3}
+      propertyPath: arrowSprite
+      value: 
+      objectReference: {fileID: 2800000, guid: 52bc51bf4f5d8fb498226b8e74d705d9, type: 3}
+    - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
+        type: 3}
+      propertyPath: reticleSprite
+      value: 
+      objectReference: {fileID: 2800000, guid: 9f0b6564e747174478512f787d89b9f5, type: 3}
     m_RemovedComponents:
     - {fileID: 6670114014473361629, guid: 7e8ffd27267e0e14dba2833683cbed70, type: 3}
   m_SourcePrefab: {fileID: 100100000, guid: 7e8ffd27267e0e14dba2833683cbed70, type: 3}
@@ -1712,6 +1722,22 @@ MonoBehaviour:
   lVertical: LVertical1
   rotateLeft: RotateRight1
   rotateRight: RotateLeft1
+--- !u!114 &929189604
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 929189599}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3417dcbb1fa7d2d46a9f0a5bce03fafa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rHorizontal: RHorizontal1
+  rVertical: RVertical1
+  shoot: Shoot1
+  playerType: 0
 --- !u!1 &962264012
 GameObject:
   m_ObjectHideFlags: 0
@@ -4672,6 +4698,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   grid: {fileID: 1641706914}
   waveManagerObject: {fileID: 6478214}
+  waveManagerObject2: {fileID: 0}
   safeSpawnRegions:
   - x: 10
     y: 10
@@ -4812,7 +4839,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fef3ed0f62c0c54a86360e4d7c4074a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  skullB: {fileID: 11400000, guid: be62f76f70152ea42a7eb462c439a256, type: 2}
+  skullB: {fileID: 11400000, guid: afe2bc39b03af7844a48eaae50113095, type: 2}
 --- !u!1001 &2143516641243073840
 PrefabInstance:
   m_ObjectHideFlags: 0

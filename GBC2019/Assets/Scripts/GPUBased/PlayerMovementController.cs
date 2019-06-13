@@ -13,6 +13,7 @@ public class PlayerMovementController : MonoBehaviour
     public string rotateRight = "RotateLeft1";
     GridComputeOperator gridOperator;
     Vector2Int lastMove;
+    int rotationDirection;
     // Start is called before the first frame update
     void Start()
     {
@@ -25,10 +26,21 @@ public class PlayerMovementController : MonoBehaviour
         Vector2 move = new Vector2(Input.GetAxis(lHorizontal), Input.GetAxis(lVertical));
         //move.Normalize();
         Vector2Int moveInt = new Vector2Int(Mathf.Abs(move.x) > deadZone ? (int)Mathf.Sign(move.x) : 0, Mathf.Abs(move.y) > deadZone ? (int)Mathf.Sign(move.y) : 0);
-        if (moveInt != lastMove)
+
+        if (Input.GetButtonDown(rotateRight))
         {
-            gridOperator.SetVelocity(playerId, moveInt.x, moveInt.y);
+            rotationDirection = 1;
+        }
+        if (Input.GetButtonDown(rotateLeft))
+        {
+            rotationDirection = -1;
+        }
+
+        if (moveInt != lastMove || rotationDirection != 0)
+        {
+            gridOperator.SetVelocity(playerId, moveInt.x, moveInt.y, rotationDirection);
         }
         lastMove = moveInt;
+        rotationDirection = 0;
     }
 }
