@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class PlayerShootController : MonoBehaviour
 {
+    public enum PowerUpType { Normal, Grenade, Whizzler};
+    public PowerUpType currentPowerUp = PowerUpType.Normal;
     public string rHorizontal = "RHorizontal1";
     public string rVertical = "RVertical1";
     public string shoot = "Shoot1";
@@ -12,10 +14,20 @@ public class PlayerShootController : MonoBehaviour
     private float deadZone = 0.38f;
     private bool shotFired;
     GridComputeOperator gridOperator;
+    [SerializeField]
+    BlockProperties normal;
+    [SerializeField]
+    BlockProperties grenade;
+    [SerializeField]
+    BlockProperties whizzler;
+    Dictionary<PowerUpType, BlockProperties> powerUpProperties = new Dictionary<PowerUpType, BlockProperties>();
     // Start is called before the first frame update
     void Start()
     {
         gridOperator = GetComponent<GridComputeOperator>();
+        powerUpProperties.Add(PowerUpType.Normal, normal);
+        powerUpProperties.Add(PowerUpType.Grenade, grenade);
+        powerUpProperties.Add(PowerUpType.Whizzler, whizzler);
     }
 
     // Update is called once per frame
@@ -32,22 +44,12 @@ public class PlayerShootController : MonoBehaviour
             // Shoot
             if (Input.GetAxis(shoot) > deadZone && !shotFired)
             {
-                BlockProperties properties;
-                properties.moveTicks = 1;
+                BlockProperties properties = powerUpProperties[currentPowerUp];
                 properties.velocityX = directionInt.x;
                 properties.velocityY = directionInt.y;
-                properties.type = Block.CellType.Enemy;
                 properties.subType = playerType;
-                properties.absorbPriority = 0;
-                properties.absorbType = 2;
-                properties.ignoreType = 1;
-                properties.canAbsorb = 0;
-                properties.CanBeAbsorbed = 1;
-                properties.KillNonMatching = 1;
-                properties.KillableByNonMatching = 1;
-                properties.isGrenade = 1;
 
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Dot], new Vector2Int(0, 0), properties, gridOperator.player1ID);
+                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Box2x2], new Vector2Int(0, 0), properties, gridOperator.player1ID);
                 shotFired = true;
             }
             else if (Input.GetAxis(shoot) <= deadZone)
