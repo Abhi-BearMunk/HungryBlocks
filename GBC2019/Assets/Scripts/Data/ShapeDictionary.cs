@@ -5,9 +5,11 @@ using UnityEngine;
 public class ShapeDictionary : MonoBehaviour
 {
 
-    public enum BlockShape { Dot = 0, Cross = 1, Hline = 2, Vline = 3, Box2x2 = 4, H = 5, Trident = 6, UFO = 7, E = 8, C = 9, ComplexE = 10, SkullB = 11,  Count = 12 }
+    public enum BlockShape { Dot = 0, Cross = 1, Hline = 2, Vline = 3, Box2x2 = 4, H = 5, Trident = 6, UFO = 7, E = 8, C = 9, ComplexE = 10, SkullB = 11, SkullB2 = 12, SkullB3 = 13, Count = 14 }
     public static Dictionary<BlockShape, List<Vector2Int>> shapeDefinitions = new Dictionary<BlockShape, List<Vector2Int>>();
     public BlockShapeDefinition skullB;
+    public BlockShapeDefinition skullB2;
+    public BlockShapeDefinition skullB3;
 
     private void Awake()
     {
@@ -148,6 +150,9 @@ public class ShapeDictionary : MonoBehaviour
 
         // SkullB
         shapeDefinitions.Add(BlockShape.SkullB, skullB.shapeDefinition);
+        shapeDefinitions.Add(BlockShape.SkullB2, skullB2.shapeDefinition);
+        shapeDefinitions.Add(BlockShape.SkullB3, skullB3.shapeDefinition);
+
     }
 }
 

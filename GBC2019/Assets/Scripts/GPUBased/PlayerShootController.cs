@@ -49,7 +49,7 @@ public class PlayerShootController : MonoBehaviour
                 properties.velocityY = directionInt.y;
                 properties.subType = playerType;
 
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Box2x2], new Vector2Int(0, 0), properties, gridOperator.player1ID);
+                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Dot], new Vector2Int(0, 0), properties, gridOperator.player1ID);
                 shotFired = true;
             }
             else if (Input.GetAxis(shoot) <= deadZone)

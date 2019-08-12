@@ -47,8 +47,8 @@ MonoBehaviour:
   eraserImage: {fileID: 2800000, guid: 7fb3e27cf635d304b82fd6ba7fd42383, type: 3}
   width: 64
   height: 36
-  shapeName: a
-  loadBlock: {fileID: 11400000, guid: 0d4d2458fd1c31a4faaf181eabc6075a, type: 2}
+  shapeName: Gun
+  loadBlock: {fileID: 11400000, guid: 178f65435929daa4a97922970e479acc, type: 2}
   positions:
   - {x: 17, y: 18}
   - {x: 17, y: 19}

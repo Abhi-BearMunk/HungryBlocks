@@ -169,6 +169,10 @@ public class GridComputeOperator : MonoBehaviour
     public int2 player1AimDirection;
     List<TransformData> movementQueue = new List<TransformData>();
 
+    public bool doAttatchment = true;
+    public bool destroyDiscoonected = true;
+    public int currentCellDisconnect;
+
     BlockStruct[] blockArray;
     CellStruct[] cellArray;
     GridCell[] grid;
@@ -251,14 +255,20 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetInt("height", height);
         gridCruncher.SetInt("scalingFactor", scalingFactor);
         gridCruncher.SetInt("detonationRadius", grenadeDetonationRadius);
+
+        Debug.Log("Fixed Delta Time = " + Time.fixedDeltaTime);
+        //Time.fixedDeltaTime /= 2; 
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
         gridCruncher.SetFloat("deltaTime", Time.deltaTime);
+        //gridCruncher.SetFloat("random1", Random.Range(0.0f, 1.0f));
+        //gridCruncher.SetFloat("random100", Random.Range(0.0f, 100.0f));
+        //gridCruncher.SetFloat("randomMinusOneToOne", Random.Range(-1.0f, 1.0f));
 
-        foreach(TransformData data in movementQueue)
+        foreach (TransformData data in movementQueue)
         {
             setVelocityArray[0].blockId = data.blockId;
             setVelocityArray[0].velocityX = data.velocityX;
@@ -277,67 +287,69 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.Dispatch(kernel, blockArray.Length / 64, 1, 1);
 
-        attatchBlocksBuffer.SetCounterValue(0);
-
-        kernel = gridCruncher.FindKernel("CheckBlockCollisions");
-        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-        gridCruncher.SetBuffer(kernel, "attatchBlocksBuffer", attatchBlocksBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
-
-        
-        ComputeBuffer.CopyCount(attatchBlocksBuffer, attatchBlocksRetrieveCountBuffer, 0);
-        int[] counter = new int[1] { 0 };
-        attatchBlocksRetrieveCountBuffer.GetData(counter);
-
-        int2[] attatchBlocks = new int2[counter[0]];
-        attatchBlocksBuffer.GetData(attatchBlocks);
-
-        if (counter[0] > 0)
+        if (doAttatchment)
         {
-            Dictionary<int, int> attatchBlocksDictionary = new Dictionary<int, int>();
-            foreach (int2 blockPair in attatchBlocks)
-            {
-                attatchBlocksDictionary[blockPair.x] = blockPair.y;
-            }
-            foreach (int2 blockPair in attatchBlocks)
-            {
-                int value = attatchBlocksDictionary[blockPair.x];
-                while (attatchBlocksDictionary.ContainsKey(value))
-                {
-                    attatchBlocksDictionary[blockPair.x] = attatchBlocksDictionary[value];
-                    value = attatchBlocksDictionary[blockPair.x];
-                }
-            }
-            int multipleOf64Offset = 64 - (attatchBlocks.Length % 64);
-            multipleOf64Offset = multipleOf64Offset == 64 ? 0 : multipleOf64Offset;
+            attatchBlocksBuffer.SetCounterValue(0);
 
-            int2[] attatchBlocksCurated = new int2[attatchBlocks.Length + multipleOf64Offset];
-            for (int i = 0; i < attatchBlocks.Length; i++)
-            {
-                attatchBlocksCurated[i].x = attatchBlocks[i].x;
-                attatchBlocksCurated[i].y = attatchBlocksDictionary[attatchBlocks[i].x];
-            }
-
-            for (int i = 0; i < multipleOf64Offset; i++)
-            {
-                attatchBlocksCurated[attatchBlocksCurated.Length - i - 1].x = -1;
-                attatchBlocksCurated[attatchBlocksCurated.Length - i - 1].y = -1;
-            }
-            attatchBlocksBuffer.SetData(attatchBlocksCurated);
-
-            kernel = gridCruncher.FindKernel("UpdateAttatchBlockID");
-            gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-            gridCruncher.SetBuffer(kernel, "attatchBlocksBufferCurated", attatchBlocksBuffer);
-            gridCruncher.Dispatch(kernel, attatchBlocksCurated.Length / 64, 1, 1);
-
-            kernel = gridCruncher.FindKernel("AttatchBlockCells");
+            kernel = gridCruncher.FindKernel("CheckBlockCollisions");
             gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
             gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-            gridCruncher.Dispatch(kernel, cellArray.Length / 8, 1, 1);
-        }
+            gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+            gridCruncher.SetBuffer(kernel, "attatchBlocksBuffer", attatchBlocksBuffer);
+            gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
+
+            ComputeBuffer.CopyCount(attatchBlocksBuffer, attatchBlocksRetrieveCountBuffer, 0);
+            int[] counter = new int[1] { 0 };
+            attatchBlocksRetrieveCountBuffer.GetData(counter);
+
+            int2[] attatchBlocks = new int2[counter[0]];
+            attatchBlocksBuffer.GetData(attatchBlocks);
+
+            if (counter[0] > 0)
+            {
+                Dictionary<int, int> attatchBlocksDictionary = new Dictionary<int, int>();
+                foreach (int2 blockPair in attatchBlocks)
+                {
+                    attatchBlocksDictionary[blockPair.x] = blockPair.y;
+                }
+                foreach (int2 blockPair in attatchBlocks)
+                {
+                    int value = attatchBlocksDictionary[blockPair.x];
+                    while (attatchBlocksDictionary.ContainsKey(value))
+                    {
+                        attatchBlocksDictionary[blockPair.x] = attatchBlocksDictionary[value];
+                        value = attatchBlocksDictionary[blockPair.x];
+                    }
+                }
+                int multipleOf64Offset = 64 - (attatchBlocks.Length % 64);
+                multipleOf64Offset = multipleOf64Offset == 64 ? 0 : multipleOf64Offset;
+
+                int2[] attatchBlocksCurated = new int2[attatchBlocks.Length + multipleOf64Offset];
+                for (int i = 0; i < attatchBlocks.Length; i++)
+                {
+                    attatchBlocksCurated[i].x = attatchBlocks[i].x;
+                    attatchBlocksCurated[i].y = attatchBlocksDictionary[attatchBlocks[i].x];
+                }
+
+                for (int i = 0; i < multipleOf64Offset; i++)
+                {
+                    attatchBlocksCurated[attatchBlocksCurated.Length - i - 1].x = -1;
+                    attatchBlocksCurated[attatchBlocksCurated.Length - i - 1].y = -1;
+                }
+                attatchBlocksBuffer.SetData(attatchBlocksCurated);
+
+                kernel = gridCruncher.FindKernel("UpdateAttatchBlockID");
+                gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+                gridCruncher.SetBuffer(kernel, "attatchBlocksBufferCurated", attatchBlocksBuffer);
+                gridCruncher.Dispatch(kernel, attatchBlocksCurated.Length / 64, 1, 1);
+
+                kernel = gridCruncher.FindKernel("AttatchBlockCells");
+                gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+                gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+                gridCruncher.Dispatch(kernel, cellArray.Length / 8, 1, 1);
+            }
+        }
 
         kernel = gridCruncher.FindKernel("MoveCells");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
@@ -359,34 +371,72 @@ public class GridComputeOperator : MonoBehaviour
         RefreshGrid();
         RefreshBlocks();
 
-        kernel = gridCruncher.FindKernel("ResetCellConnctionsToCenter");
-        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
-
-        maxBlockBounds.GetData(maxBound);
-        int maxDim = maxBound[0].x + maxBound[0].y;
-
-        Debug.Log("MAX DIMENSIONS : X = " + maxBound[0].x + ", Y = " + maxBound[0].y);
-        for (int i = 0; i < maxDim; i++)
+        if (destroyDiscoonected)
         {
-            kernel = gridCruncher.FindKernel("ConnectCellToCenter");
+            kernel = gridCruncher.FindKernel("ResetCellConnctionsToCenter");
             gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-            gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+            gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
             gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+
+            maxBlockBounds.GetData(maxBound);
+            int maxDim = maxBound[0].x + maxBound[0].y;
+
+            Debug.Log("MAX DIMENSIONS : X = " + maxBound[0].x + ", Y = " + maxBound[0].y);
+            for (int i = 0; i < maxDim; i++)
+            {
+                kernel = gridCruncher.FindKernel("ConnectCellToCenter");
+                gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+                gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+                gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+            }
+
+            kernel = gridCruncher.FindKernel("DestroyDisconnectedCells");
+            gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+            gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+            gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+
+            RefreshBlocks();
+            RefreshGrid();
         }
 
-        kernel = gridCruncher.FindKernel("DestroyDisconnectedCells");
-        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+        //if (destroyDiscoonected)
+        //{
+        //    maxBlockBounds.GetData(maxBound);
+        //    int maxDim = maxBound[0].x + maxBound[0].y;
+        //    Debug.Log("MAX DIMENSIONS : X = " + maxBound[0].x + ", Y = " + maxBound[0].y);
 
+        //    if (currentCellDisconnect == 0)
+        //    {
+        //        kernel = gridCruncher.FindKernel("ResetCellConnctionsToCenter");
+        //        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        //        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        //        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+        //        currentCellDisconnect++;
+        //    }
 
+        //    else if (currentCellDisconnect < maxDim)
+        //    {
+        //        kernel = gridCruncher.FindKernel("ConnectCellToCenter");
+        //        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        //        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+        //        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+        //        currentCellDisconnect++;
+        //    }
 
-        RefreshBlocks();
-        RefreshGrid();
+        //    else if(currentCellDisconnect >= maxDim)
+        //    {
+        //        kernel = gridCruncher.FindKernel("DestroyDisconnectedCells");
+        //        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        //        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        //        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
 
+        //        RefreshBlocks();
+        //        RefreshGrid();
 
+        //        currentCellDisconnect = 0;
+        //    }
+
+        //}
         kernel = gridCruncher.FindKernel("ResetBlockDeathAndMove");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
@@ -425,9 +475,10 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.Dispatch(kernel, (width * scalingFactor) / 16, (height * scalingFactor) / 9, 1);
 
         kernel = gridCruncher.FindKernel("DisplayCells");
+        gridCruncher.SetInt("player1ID", player1ID);
         gridCruncher.SetTexture(kernel, "Result", displayTexture);
         gridCruncher.SetTexture(kernel, "cellSprite", cellSprite);
-        //gridCruncher.SetTexture(kernel, "debugSprite", debugSprite);
+        gridCruncher.SetTexture(kernel, "debugSprite", debugSprite);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
@@ -438,7 +489,7 @@ public class GridComputeOperator : MonoBehaviour
         gridCruncher.SetTexture(kernel, "cellSprite", cellSprite);
         gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, (scalingFactor) / 10, (scalingFactor) / 10, cellArray.Length / 8);
+        gridCruncher.Dispatch(kernel, (scalingFactor) / 2, (scalingFactor) / 2, cellArray.Length / 32);
 
         kernel = gridCruncher.FindKernel("LerpCells");
         gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
@@ -457,17 +508,17 @@ public class GridComputeOperator : MonoBehaviour
             gridCruncher.SetTexture(kernel, "arrowSprite", arrowSprite);
             gridCruncher.SetTexture(kernel, "reticleSprite", reticleSprite);
             gridCruncher.SetTexture(kernel, "Result", displayTexture);
-            gridCruncher.Dispatch(kernel, scalingFactor / 10, scalingFactor / 10, Mathf.Max(width, height) / 8);
+            gridCruncher.Dispatch(kernel, scalingFactor / 2, scalingFactor / 2, Mathf.Max(width, height) / 32);
         }
 
-        kernel = gridCruncher.FindKernel("DisplayCenterPins");
-        gridCruncher.SetTexture(kernel, "Result", displayTexture);
-        //gridCruncher.SetTexture(kernel, "cellSprite", cellSprite);
-        gridCruncher.SetTexture(kernel, "debugSprite", debugSprite);
-        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
-        gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
-        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
-        gridCruncher.Dispatch(kernel, (width * scalingFactor) / 16, (height * scalingFactor) / 9, 1);
+        //kernel = gridCruncher.FindKernel("DisplayCenterPins");
+        //gridCruncher.SetTexture(kernel, "Result", displayTexture);
+        ////gridCruncher.SetTexture(kernel, "cellSprite", cellSprite);
+        //gridCruncher.SetTexture(kernel, "debugSprite", debugSprite);
+        //gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        //gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
+        //gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        //gridCruncher.Dispatch(kernel, (width * scalingFactor) / 16, (height * scalingFactor) / 9, 1);
     }
 
     public int CreateBlock(List<Vector2Int> shapeDefinition, Vector2Int position, BlockProperties properties, int relativeBlockID = -1)
@@ -477,12 +528,20 @@ public class GridComputeOperator : MonoBehaviour
         int paddingToMakeItMultipleOf64 = 64 - (shapeDefinition.Count % 64);
         int2[] shape = new int2[shapeDefinition.Count + paddingToMakeItMultipleOf64];
         int index = 0;
+        int centerX = 0;
+        int centerY = 0;
         foreach(Vector2Int v in shapeDefinition)
         {
             shape[index].x = v.x + position.x;
             shape[index].y = v.y + position.y;
+            centerX += v.x;
+            centerY += v.y;
             index++;
         }
+
+        centerX = Mathf.FloorToInt(centerX / shapeDefinition.Count);
+        centerY = Mathf.FloorToInt(centerY / shapeDefinition.Count);
+
 
         for (int i = index; i < shape.Length; i++)
         {
@@ -491,9 +550,12 @@ public class GridComputeOperator : MonoBehaviour
         }
 
         // Set New Parameters
+
         gridCruncher.SetInt("newCreationID", creationId);
         gridCruncher.SetInt("newType", (int)properties.type);
         gridCruncher.SetInt("newSubType", (int)properties.subType);
+        gridCruncher.SetInt("newBlockOffsetX", centerX);
+        gridCruncher.SetInt("newBlockOffsetY", centerY);
         gridCruncher.SetInt("newVelocityX", properties.velocityX);
         gridCruncher.SetInt("newVelocityY", properties.velocityY);
         gridCruncher.SetInt("newMoveTicks", properties.moveTicks);

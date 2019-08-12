@@ -28,7 +28,7 @@ public class WaveManager : MonoBehaviour, IWaveManager
     // Start is called before the first frame update
     void Start()
     {
-        //specialShape = true;
+        specialShape = true;
     }
 
     // Update is called once per frame
@@ -189,7 +189,7 @@ public class WaveManager : MonoBehaviour, IWaveManager
         //                    typeof(BlockMover),
         //                    typeof(MovementControl));
         go = playerObject;
-        block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Dot], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() / 2), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
+        block = grid.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(grid.GetWidth() / 2, grid.GetHeight() / 2), Block.CellType.Enemy, (Block.CellSubType)(Random.Range(1, 5)), go);
         block.GetComponent<AbsorbData>().priority = 100;
         block.GetComponent<BlockMover>().deltaTime = 0.1f;
     }

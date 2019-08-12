@@ -169,9 +169,10 @@ MonoBehaviour:
   playerController: {fileID: 929189600}
   seed: 0
   initialNumber: 1000
-  spawnTime: 1
+  spawnTime: 10
   playerObject: {fileID: 0}
   shape: 11
+  specialShape: 0
 --- !u!1 &70971248
 GameObject:
   m_ObjectHideFlags: 0
@@ -785,7 +786,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &527207195
 Transform:
   m_ObjectHideFlags: 0
@@ -913,7 +914,7 @@ PrefabInstance:
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
       propertyPath: scalingFactor
-      value: 40
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
@@ -945,6 +946,21 @@ PrefabInstance:
       propertyPath: reticleSprite
       value: 
       objectReference: {fileID: 2800000, guid: 9f0b6564e747174478512f787d89b9f5, type: 3}
+    - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
+        type: 3}
+      propertyPath: grenadeDetonationRadius
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
+        type: 3}
+      propertyPath: destroyDiscoonected
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
+        type: 3}
+      propertyPath: doAttatchment
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 6670114014473361629, guid: 7e8ffd27267e0e14dba2833683cbed70, type: 3}
   m_SourcePrefab: {fileID: 100100000, guid: 7e8ffd27267e0e14dba2833683cbed70, type: 3}
@@ -1734,10 +1750,53 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3417dcbb1fa7d2d46a9f0a5bce03fafa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  currentPowerUp: 0
   rHorizontal: RHorizontal1
   rVertical: RVertical1
   shoot: Shoot1
   playerType: 0
+  normal:
+    type: 0
+    subType: 0
+    velocityX: 0
+    velocityY: 0
+    moveTicks: 1
+    absorbPriority: 0
+    absorbType: 2
+    ignoreType: 1
+    canAbsorb: 0
+    CanBeAbsorbed: 1
+    KillNonMatching: 1
+    KillableByNonMatching: 1
+    isGrenade: 0
+  grenade:
+    type: 0
+    subType: 0
+    velocityX: 0
+    velocityY: 0
+    moveTicks: 1
+    absorbPriority: 0
+    absorbType: 2
+    ignoreType: 1
+    canAbsorb: 0
+    CanBeAbsorbed: 1
+    KillNonMatching: 1
+    KillableByNonMatching: 1
+    isGrenade: 1
+  whizzler:
+    type: 0
+    subType: 0
+    velocityX: 0
+    velocityY: 0
+    moveTicks: 1
+    absorbPriority: 0
+    absorbType: 2
+    ignoreType: 1
+    canAbsorb: 0
+    CanBeAbsorbed: 1
+    KillNonMatching: 1
+    KillableByNonMatching: 0
+    isGrenade: 0
 --- !u!1 &962264012
 GameObject:
   m_ObjectHideFlags: 0
@@ -4839,7 +4898,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fef3ed0f62c0c54a86360e4d7c4074a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  skullB: {fileID: 11400000, guid: afe2bc39b03af7844a48eaae50113095, type: 2}
+  skullB: {fileID: 11400000, guid: e42a8d895f2bd0d40adaaaf21623f4b6, type: 2}
+  skullB2: {fileID: 11400000, guid: e42a8d895f2bd0d40adaaaf21623f4b6, type: 2}
+  skullB3: {fileID: 11400000, guid: f8623f96174d2d147bd592d548529c11, type: 2}
 --- !u!1001 &2143516641243073840
 PrefabInstance:
   m_ObjectHideFlags: 0

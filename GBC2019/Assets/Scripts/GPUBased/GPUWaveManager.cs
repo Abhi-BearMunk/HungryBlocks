@@ -23,12 +23,13 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     public ShapeDictionary.BlockShape shape;
     int spawnPowerUp = 0;
 
-    bool specialShape;
+    public bool specialShape;
     bool playerSpawned;
+    int playerSubType;
     // Start is called before the first frame update
     void Start()
     {
-        specialShape = true;
+        //specialShape = true;
         //Random.InitState(seed);
     }
 
@@ -46,10 +47,10 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
                 playerSpawned = true;
             }
             spawnPowerUp++;
-            if (spawnPowerUp > 5)
+            if (spawnPowerUp > 1)
             {
                 spawnPowerUp = 0;
-                SpawnBoss();
+                //SpawnBoss();
                 //SpawnPowerUp();
             }
             spawnTimer = spawnTime;
@@ -92,7 +93,8 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     void SpawnBoss()
     {
         BlockProperties properties;
-        properties.moveTicks = 5;
+        //properties.moveTicks = 10;
+        properties.moveTicks = 2;
         properties.velocityX = 0;
         properties.velocityY = -1;
         properties.type = Block.CellType.Enemy;
@@ -104,30 +106,33 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
         properties.CanBeAbsorbed = 1;
         properties.KillNonMatching = 1;
         properties.KillableByNonMatching = 1;
-        properties.isGrenade = 1;
+        properties.isGrenade = 0;
         int rand = Random.Range(0, 4);
-        switch(rand)
+        int subType = (playerSubType - 1) + Random.Range(1, 4);
+        subType = subType % 4;
+        properties.subType = (Block.CellSubType)(subType + 1);
+        switch (rand)
         {
             case 0:
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(gridOperator.width / 2 - 30, gridOperator.height - 4), properties);
+                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB3], new Vector2Int(gridOperator.width / 2, gridOperator.height + 40), properties);
                 break;
             case 1:
                 properties.velocityX = 1;
                 properties.velocityY = 0;
-                properties.subType = (Block.CellSubType.G);
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(-60, gridOperator.height / 2 - 20), properties);
+                //properties.subType = (Block.CellSubType.G);
+                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB3], new Vector2Int(-30, gridOperator.height / 2), properties);
                 break;
             case 2:
                 properties.velocityX = -1;
                 properties.velocityY = 0;
-                properties.subType = (Block.CellSubType.B);
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(gridOperator.width, gridOperator.height / 2 - 20), properties);
+                //properties.subType = (Block.CellSubType.B);
+                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB3], new Vector2Int(gridOperator.width + 30, gridOperator.height / 2), properties);
                 break;
             case 3:
                 properties.velocityX = 0;
                 properties.velocityY = 1;
-                properties.subType = (Block.CellSubType.Y);
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(gridOperator.width / 2 - 30, -36), properties);
+                //properties.subType = (Block.CellSubType.Y);
+                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB3], new Vector2Int(gridOperator.width / 2, -40), properties);
                 break;
         }
     }
@@ -201,13 +206,22 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     void Spawn8()
     {
         List<Vector2Int> shape;
-        shape = ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, 8)];
+        if(!specialShape)
+        {
+            shape = ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, 8)];
+        }
+        else
+        {
+            shape = ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB2];
+        }
+
 
         List<Block.CellSubType> permutation1 = SubTypePermutation();
         List<Block.CellSubType> permutation2 = SubTypePermutation();
 
         BlockProperties properties;
-        properties.moveTicks = Random.Range(50, 81);
+        properties.moveTicks = Random.Range(80, 101);
+        //properties.moveTicks = Random.Range(10, 21);
         properties.velocityX = 0;
         properties.velocityY = 0;
         properties.type = Block.CellType.Enemy;
@@ -245,11 +259,13 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     void SpawnPlayer()
     {
         BlockProperties properties;
-        properties.moveTicks = 10;
+        properties.moveTicks = 8;
+        //properties.moveTicks = 1;
         properties.velocityX = 0;
         properties.velocityY = 0;
         properties.type = Block.CellType.Player;
         properties.subType = (Block.CellSubType)(Random.Range(1, 5));
+        playerSubType = (int)properties.subType;
         properties.absorbPriority = 100;
         properties.absorbType = 1;
         properties.ignoreType = 2;
@@ -259,7 +275,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
         properties.KillableByNonMatching = 1;
         properties.isGrenade = 0;
 
-        playerController.playerId = gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.Cross], new Vector2Int(gridOperator.width / 2, gridOperator.height / 2), properties);
+        playerController.playerId = gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(gridOperator.width / 2, gridOperator.height / 2), properties);
         gridOperator.player1ID = playerController.playerId;
         gridOperator.GetComponent<PlayerShootController>().playerType = (Block.CellSubType)properties.subType;
     }

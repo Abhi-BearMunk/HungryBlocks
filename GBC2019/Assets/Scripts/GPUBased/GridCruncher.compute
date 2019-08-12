@@ -139,11 +139,14 @@ int detonationRadius;
 
 // Time 
 float deltaTime;
+float random1;
+float random100;
+float randomMinusOneToOne;
 
 // Add Block Params
 int newCreationID;
-int newBlockPosX;
-int newBlockPosY;
+int newBlockOffsetX;
+int newBlockOffsetY;
 int spawnRelativeBlockID;
 uint newType;
 uint newSubType;
@@ -204,6 +207,15 @@ float4 GetColorFromType(int blockType)
 bool InGridBounds(float x, float y)
 {
 	return x >= 0 && x < width && y >= 0 && y < height;
+}
+
+float InGridBoundsInt(float x, float y)
+{
+    float xVal = x * (x - (width - 1));
+    float xRet = (abs(xVal) - sign(xVal)) / 2;
+    float yVal = y * (y - (height - 1));
+    float yRet = (abs(yVal) - sign(yVal)) / 2;
+    return xRet * yRet;
 }
 
 bool InGridBoundsPadded(float x, float y, float padding)
@@ -285,10 +297,10 @@ void AddCells(uint3 id : SV_DispatchThreadID)
 	if (newCells[id.x].x >= -1000)
 	{
 		cellBuffer[cellId].ID = cellId;
-		cellBuffer[cellId].gridPosX = newCells[id.x].x + relativeBlockX;
-		cellBuffer[cellId].gridPosY = newCells[id.x].y + relativeBlockY;
-        cellBuffer[cellId].lastX = (newCells[id.x].x + relativeBlockX) * scalingFactor;
-        cellBuffer[cellId].lastY = (newCells[id.x].y + relativeBlockY) * scalingFactor;
+		cellBuffer[cellId].gridPosX = newCells[id.x].x + relativeBlockX - newBlockOffsetX;
+        cellBuffer[cellId].gridPosY = newCells[id.x].y + relativeBlockY - newBlockOffsetY;
+        cellBuffer[cellId].lastX = (newCells[id.x].x + relativeBlockX - newBlockOffsetX) * scalingFactor;
+        cellBuffer[cellId].lastY = (newCells[id.x].y + relativeBlockY - newBlockOffsetY) * scalingFactor;
 		cellBuffer[cellId].parentBlockID = deadBlocksCurated[0];
 		cellBuffer[cellId].dead = 1;
         cellBuffer[cellId].dying = 0;
@@ -432,6 +444,7 @@ void GetBlockCenterCell(uint3 id : SV_DispatchThreadID)
     {
         int temp;
         BlockStruct block = blockBuffer[cellBuffer[cellId].parentBlockID];
+        // Do we really nedd the first check since centerGridID IS being set using the distance
         if ((int) (pow(cell.gridPosX - block.centerX, 2) + pow(cell.gridPosY - block.centerY, 2)) == block.centerCellSquareDistance && width * cell.gridPosY + cell.gridPosX == block.centerGridID)
         {
             int temp;
@@ -707,14 +720,6 @@ void PostMoveKillOutgoingCells(uint3 id : SV_DispatchThreadID)
 void ResetBlockDeathAndMove(uint3 id : SV_DispatchThreadID)
 {
     int blockId = id.x;
-    //if (blockBuffer[blockId].dead == 1)
-    //{
-    //    blockBuffer[blockId].aboutToDie = 1;
-    //}
-    //else
-    //{
-    //    blockBuffer[blockId].aboutToDie = 0;
-    //}
     blockBuffer[blockId].aboutToDie = blockBuffer[blockId].dead;
     blockBuffer[blockId].dead = 0;
     blockBuffer[blockId].rotateDirection = 0;
@@ -748,7 +753,7 @@ void Detonate(uint3 id : SV_DispatchThreadID)
 
         int x = blockBuffer[blockId].centerX - detonationRadius + id.y;
         int y = blockBuffer[blockId].centerY - detonationRadius + id.z;
-        if (InGridBounds(x, y))
+        if (InGridBounds(x, y) && pow((int)id.y - detonationRadius, 2) + pow((int) id.z - detonationRadius, 2) <= detonationRadius * detonationRadius)
         {
             int gridId = width * y + x;
             for (int i = 0; i < 10; i++)
@@ -758,8 +763,17 @@ void Detonate(uint3 id : SV_DispatchThreadID)
                     cellBuffer[grid[gridId].cells[i]].dead = 0;
                     cellBuffer[grid[gridId].cells[i]].dying = 1;
                     cellBuffer[grid[gridId].cells[i]].isImpactDeath = 1;
-                    float deltaX = (cellBuffer[grid[gridId].cells[i]].lastX / scalingFactor) - blockBuffer[blockId].centerX;
-                    float deltaY = (cellBuffer[grid[gridId].cells[i]].lastY / scalingFactor) - blockBuffer[blockId].centerY;
+                    float deltaX = 0.125 * ((cellBuffer[grid[gridId].cells[i]].lastX / scalingFactor) - blockBuffer[blockId].centerX);
+                    float deltaY = 0.125 * ((cellBuffer[grid[gridId].cells[i]].lastY / scalingFactor) - blockBuffer[blockId].centerY);
+                    //float deltaX = 0;
+                    //float deltaY = 0;
+                    
+                    //deltaX += blockBuffer[blockId].velocityX * 1;
+                    //deltaY += blockBuffer[blockId].velocityY * 1;
+
+                    deltaX *= 1 - pow(frac(((float) rand_lcg(id.y + id.z))) / 1000.0, 1);
+                    deltaY *= 1 - pow(frac(((float) rand_lcg(rand_lcg(id.y + id.z)))) / 1000.0, 1);
+
                     cellBuffer[grid[gridId].cells[i]].velocityX = sign(deltaX) * 2000.0 / pow(max(1, abs(deltaX)), 2);
                     cellBuffer[grid[gridId].cells[i]].velocityY = sign(deltaY) * 3000.0 / pow(max(1, abs(deltaY)), 2);
                     cellBuffer[grid[gridId].cells[i]].timeSinceImpact = 0;
@@ -788,14 +802,48 @@ void DisplayCells(uint3 id : SV_DispatchThreadID)
         for (int i = 0; i < 10; i++)
         {
             int cellId = grid[gridId].cells[i];
-            float deltaX = x * scalingFactor - cellBuffer[cellId].lastX;
-            float deltaY = y * scalingFactor - cellBuffer[cellId].lastY;
+
             if (cellId >= 0 && cellBuffer[cellId].dead == 1)
             {
+                float deltaX = x * scalingFactor - cellBuffer[cellId].lastX;
+                float deltaY = y * scalingFactor - cellBuffer[cellId].lastY;
+
                 float u = (float) id.x / (float) scalingFactor - (float) x;
                 float v = (float) id.y / (float) scalingFactor - (float) y;
                 
                 Result[id.xy - int2(deltaX, deltaY)] = cellSprite.SampleLevel(sampler_cellSprite, float2(u, v), 3) * GetColorFromType(blockBuffer[cellBuffer[cellId].parentBlockID].subType);
+                if (cellId == blockBuffer[cellBuffer[cellId].parentBlockID].centerCellID)
+                {
+                    float4 col = debugSprite.SampleLevel(sampler_debugSprite, float2(u, v), 0);
+                    if (col.a > 0)
+                    {
+                        Result[id.xy - int2(deltaX, deltaY) + int2(0, scalingFactor * 0.5)] = debugSprite.SampleLevel(sampler_debugSprite, float2(u, v), 0);
+                    }
+                }
+                if (cellBuffer[cellId].gridPosY - cellBuffer[blockBuffer[cellBuffer[cellId].parentBlockID].centerCellID].gridPosY == 1 && cellBuffer[cellId].gridPosX == cellBuffer[blockBuffer[cellBuffer[cellId].parentBlockID].centerCellID].gridPosX)
+                {
+                    float4 col = debugSprite.SampleLevel(sampler_debugSprite, float2(u, v), 0);
+                    if (col.a > 0)
+                    {
+                        Result[id.xy - int2(deltaX, deltaY) + int2(0, -scalingFactor * 0.5)] = debugSprite.SampleLevel(sampler_debugSprite, float2(u, v), 0);
+                    }
+                }
+                int playerIdDelta = abs(sign(cellBuffer[cellId].parentBlockID - player1ID));
+                if (playerIdDelta == 0 && ((u < 0.3 && InGridBounds(x - 1, y) && grid[gridId - 1].cells[0] < 0) ||
+                    (u > 0.7 && InGridBounds(x + 1, y) && grid[gridId + 1].cells[0] < 0) ||
+                    (v < 0.3 && InGridBounds(x, y - 1) && grid[gridId - width].cells[0] < 0) ||
+                    (v > 0.7 && InGridBounds(x, y + 1) && grid[gridId + width].cells[0] < 0)))
+                {
+                    Result[id.xy - int2(deltaX, deltaY)] = float4(1, 1, 1, 1);
+                }
+                if ((u < 0.1 + (1 - playerIdDelta) * 0.1 && InGridBounds(x - 1, y) && grid[gridId - 1].cells[0] < 0) ||
+                    (u > 0.9 - (1 - playerIdDelta) * 0.1 && InGridBounds(x + 1, y) && grid[gridId + 1].cells[0] < 0) ||
+                    (v < 0.1 + (1 - playerIdDelta) * 0.1 && InGridBounds(x, y - 1) && grid[gridId - width].cells[0] < 0) ||
+                    (v > 0.9 - (1 - playerIdDelta) * 0.1 && InGridBounds(x, y + 1) && grid[gridId + width].cells[0] < 0))
+                {
+                    Result[id.xy - int2(deltaX, deltaY)] = float4(0,0,0,1);
+                }
+                
             }
         }
     }
@@ -838,54 +886,40 @@ void DisplayCenterPins(uint3 id : SV_DispatchThreadID)
 void LerpCells(uint3 id : SV_DispatchThreadID)
 {
     int cellId = id.x;
-    if (cellBuffer[cellId].dead == 1 || cellBuffer[cellId].dying == 1)
-    { 
-        if (cellBuffer[cellId].isImpactDeath == 0)
-        {
-            int x = cellBuffer[cellId].gridPosX;
-            int y = cellBuffer[cellId].gridPosY;
 
-            cellBuffer[cellId].lastX = cellBuffer[cellId].lastX * 0.5 + x * scalingFactor * 0.5;
-            cellBuffer[cellId].lastY = cellBuffer[cellId].lastY * 0.5 + y * scalingFactor * 0.5;
-            //cellBuffer[cellId].lastX = cellBuffer[cellId].lastX + min(20 * (60 / blockBuffer[cellBuffer[cellId].parentBlockID].moveTicks), abs(x * scalingFactor - cellBuffer[cellId].lastX)) * sign(x * scalingFactor - cellBuffer[cellId].lastX);
-        //cellBuffer[cellId].lastY = cellBuffer[cellId].lastY + min(20 * (60 / blockBuffer[cellBuffer[cellId].parentBlockID].moveTicks), abs(y * scalingFactor - cellBuffer[cellId].lastY)) * sign(y * scalingFactor - cellBuffer[cellId].lastY);
-        }
-        else
-        {
-            int x = floor(cellBuffer[cellId].lastX / scalingFactor);
-            int y = floor(cellBuffer[cellId].lastY / scalingFactor);
-            int gridId = width * y + x;
-            if (grid[gridId].cells[0] > -1)
-            {
-                float fracX = frac(cellBuffer[cellId].lastX / scalingFactor);
-                float fracY = frac(cellBuffer[cellId].lastY / scalingFactor);
-                if (fracX < 0.05 || fracX > 0.95)
-                {
-                    cellBuffer[cellId].velocityX = -0.75 * cellBuffer[cellId].velocityX;
-                }
-                else if (fracY < 0.05 || fracY > 0.95)
-                {
-                    cellBuffer[cellId].velocityY = -0.75 * cellBuffer[cellId].velocityY;
-                }
-            }
+    int x = cellBuffer[cellId].gridPosX;
+    int y = cellBuffer[cellId].gridPosY;
+
+    cellBuffer[cellId].lastX = cellBuffer[cellId].lastX * (1 - 0.5 * cellBuffer[cellId].dead) + x * cellBuffer[cellId].dead * scalingFactor * 0.5;
+    cellBuffer[cellId].lastY = cellBuffer[cellId].lastY * (1 - 0.5 * cellBuffer[cellId].dead) + y * cellBuffer[cellId].dead * scalingFactor * 0.5;
+        
+
+    x = floor(cellBuffer[cellId].lastX / scalingFactor);
+    y = floor(cellBuffer[cellId].lastY / scalingFactor);
+    int gridId = width * y + x;
+    if (!InGridBounds(x, y) || grid[gridId].cells[0] > -1)
+    {
+        float fracX = frac(cellBuffer[cellId].lastX / scalingFactor);
+        float fracY = frac(cellBuffer[cellId].lastY / scalingFactor);
+        cellBuffer[cellId].velocityX = sign(cellBuffer[cellId].velocityX * (frac(cellBuffer[cellId].lastX / scalingFactor) - 0.5)) * 0.8 * cellBuffer[cellId].velocityX;
+        cellBuffer[cellId].velocityY = sign(cellBuffer[cellId].velocityY * (frac(cellBuffer[cellId].lastY / scalingFactor) - 0.5)) * 0.8 * cellBuffer[cellId].velocityY;
+    }
 
 
-            cellBuffer[cellId].timeSinceImpact += deltaTime;
-            cellBuffer[cellId].lastX += cellBuffer[cellId].velocityX * deltaTime;
-            cellBuffer[cellId].velocityY -= 8000 * deltaTime;
-            cellBuffer[cellId].lastY += cellBuffer[cellId].velocityY * deltaTime;
-        }        
-    }   
+    cellBuffer[cellId].timeSinceImpact += deltaTime;
+    cellBuffer[cellId].lastX += cellBuffer[cellId].velocityX * (1 - cellBuffer[cellId].dead) * deltaTime;
+    cellBuffer[cellId].velocityY -= 8000 * deltaTime;
+    cellBuffer[cellId].lastY += cellBuffer[cellId].velocityY * (1 - cellBuffer[cellId].dead) * deltaTime;
 }
 
-[numthreads(10, 10, 8)]
+[numthreads(2, 2, 32)]
 void DisplayDyingCells(uint3 id : SV_DispatchThreadID)
 {
     int cellId = id.z;
     if (cellBuffer[cellId].dead == 0 && cellBuffer[cellId].dying == 1)
     {
-        float theta = (float) cellBuffer[cellId].rotTicks * 0.5;
-        float scale = 1.5 - (0.01 * (1 - cellBuffer[cellId].isImpactDeath) + 0.001 * cellBuffer[cellId].isImpactDeath) * (float) cellBuffer[cellId].rotTicks;
+        float theta = (float) cellBuffer[cellId].rotTicks * (0.5 * (1 - cellBuffer[cellId].isImpactDeath) + 0.05 * cellBuffer[cellId].isImpactDeath);
+        float scale = 1.5 - (0.003 * (1 - cellBuffer[cellId].isImpactDeath) + 0.001 * cellBuffer[cellId].isImpactDeath) * (float) cellBuffer[cellId].rotTicks;
         float offset = 2 * (float) cellBuffer[cellId].rotTicks;
         float originalX = id.x - (float) scalingFactor * 0.5;
         float originalY = id.y - (float) scalingFactor * 0.5;
@@ -896,7 +930,13 @@ void DisplayDyingCells(uint3 id : SV_DispatchThreadID)
 
         if (InGridBounds(cellBuffer[cellId].gridPosX, cellBuffer[cellId].gridPosY))
         {
-            Result[uint2(((float) cellBuffer[cellId].lastX / scalingFactor + 0.5) * scalingFactor + newX, ((float) cellBuffer[cellId].lastY / scalingFactor + 0.5) * scalingFactor + newY)] = cellSprite.SampleLevel(sampler_cellSprite, float2(id.x, id.y) / (float) scalingFactor, 3) * GetColorFromType(blockBuffer[cellBuffer[cellId].parentBlockID].subType);
+            float2 uv = float2(id.x, id.y) / (float) scalingFactor;
+            Result[uint2(((float) cellBuffer[cellId].lastX / scalingFactor + 0.5) * scalingFactor + newX, ((float) cellBuffer[cellId].lastY / scalingFactor + 0.5) * scalingFactor + newY)] = cellSprite.SampleLevel(sampler_cellSprite, uv, 3) * GetColorFromType(blockBuffer[cellBuffer[cellId].parentBlockID].subType);
+           
+            if (uv.x < 0.06 || uv.x > 0.94 || uv.y < 0.06 || uv.y > 0.94)
+            {
+                Result[uint2(((float) cellBuffer[cellId].lastX / scalingFactor + 0.5) * scalingFactor + newX, ((float) cellBuffer[cellId].lastY / scalingFactor + 0.5) * scalingFactor + newY)] = float4(0, 0, 0, 1);
+            }
         }
         cellBuffer[cellId].rotTicks++;
         float delX = cellBuffer[cellId].gridPosX - cellBuffer[cellId].lastX / scalingFactor;
@@ -908,7 +948,7 @@ void DisplayDyingCells(uint3 id : SV_DispatchThreadID)
     }
 }
 
-[numthreads(10, 10, 8)]
+[numthreads(2, 2, 32)]
 void DisplayAimReticle(uint3 id : SV_DispatchThreadID)
 {
     int aimArrowId = id.z;
