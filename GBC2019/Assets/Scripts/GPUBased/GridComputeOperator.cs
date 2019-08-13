@@ -200,6 +200,11 @@ public class GridComputeOperator : MonoBehaviour
     ComputeBuffer playerAimDataBuffer;
 
     int creationId = 0;
+
+    Dictionary<ShapeDictionary.BlockShape, ComputeBuffer> shapeDefinitionBuffers = new Dictionary<ShapeDictionary.BlockShape, ComputeBuffer>();
+    Dictionary<ShapeDictionary.BlockShape, Vector2Int> shapeDefinitionCenters = new Dictionary<ShapeDictionary.BlockShape, Vector2Int>();
+    Dictionary<ShapeDictionary.BlockShape, int> shapeDefinitionCount = new Dictionary<ShapeDictionary.BlockShape, int>();
+
     // Start is called before the first frame update
     void Awake()
     {
@@ -258,6 +263,11 @@ public class GridComputeOperator : MonoBehaviour
 
         Debug.Log("Fixed Delta Time = " + Time.fixedDeltaTime);
         //Time.fixedDeltaTime /= 2; 
+    }
+
+    private void Start()
+    {
+        GenerateShapeBuffers();
     }
 
     // Update is called once per frame
@@ -519,6 +529,116 @@ public class GridComputeOperator : MonoBehaviour
         //gridCruncher.SetBuffer(kernel, "grid", gridCellBuffer);
         //gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
         //gridCruncher.Dispatch(kernel, (width * scalingFactor) / 16, (height * scalingFactor) / 9, 1);
+    }
+
+    private void AddShapeBuffer(ShapeDictionary.BlockShape shapeName, List<Vector2Int> shapeDefinition)
+    {
+        // Copy shape onto a int2 array
+        int paddingToMakeItMultipleOf64 = 64 - (shapeDefinition.Count % 64);
+        int2[] shape = new int2[shapeDefinition.Count + paddingToMakeItMultipleOf64];
+        int index = 0;
+        int centerX = 0;
+        int centerY = 0;
+        foreach (Vector2Int v in shapeDefinition)
+        {
+            shape[index].x = v.x;
+            shape[index].y = v.y;
+            centerX += v.x;
+            centerY += v.y;
+            index++;
+        }
+
+        centerX = Mathf.FloorToInt(centerX / shapeDefinition.Count);
+        centerY = Mathf.FloorToInt(centerY / shapeDefinition.Count);
+
+
+        for (int i = index; i < shape.Length; i++)
+        {
+            shape[i].x = -10000;
+            shape[i].y = -10000;
+        }
+
+        ComputeBuffer shapeBuffer = new ComputeBuffer(shape.Length, int2.GetLength(), ComputeBufferType.Default);
+        shapeBuffer.SetData(shape);
+
+        shapeDefinitionBuffers.Add(shapeName, shapeBuffer);
+        shapeDefinitionCenters.Add(shapeName, new Vector2Int(centerX, centerY));
+        shapeDefinitionCount.Add(shapeName, shape.Length);
+    }
+
+    private void GenerateShapeBuffers()
+    {
+        foreach(ShapeDictionary.BlockShape shapeName in ShapeDictionary.shapeDefinitions.Keys)
+        {
+            AddShapeBuffer(shapeName, ShapeDictionary.shapeDefinitions[shapeName]);
+        }
+    }
+
+    public int CreateBlock(ShapeDictionary.BlockShape shapeName, Vector2Int position, BlockProperties properties, int relativeBlockID = -1)
+    {
+        creationId++;
+
+        Vector2Int center = shapeDefinitionCenters[shapeName];
+
+        // Set New Parameters
+        gridCruncher.SetInt("newCreationID", creationId);
+        gridCruncher.SetInt("newType", (int)properties.type);
+        gridCruncher.SetInt("newSubType", (int)properties.subType);
+        gridCruncher.SetInt("newBlockOffsetX", center.x - position.x);
+        gridCruncher.SetInt("newBlockOffsetY", center.y - position.y);
+        gridCruncher.SetInt("newVelocityX", properties.velocityX);
+        gridCruncher.SetInt("newVelocityY", properties.velocityY);
+        gridCruncher.SetInt("newMoveTicks", properties.moveTicks);
+        gridCruncher.SetInt("newAbsorbPriority", properties.absorbPriority);
+        gridCruncher.SetInt("newAbsorbType", properties.absorbType);
+        gridCruncher.SetInt("newIgnoreType", properties.ignoreType);
+        gridCruncher.SetInt("newCanAbsorb", properties.canAbsorb);
+        gridCruncher.SetInt("newCanBeAbsorbed", properties.CanBeAbsorbed);
+        gridCruncher.SetInt("newKillNonMatching", properties.KillNonMatching);
+        gridCruncher.SetInt("newKillableByNonMatching", properties.KillableByNonMatching);
+        gridCruncher.SetInt("newIsGrenade", properties.isGrenade);
+        gridCruncher.SetInt("spawnRelativeBlockID", relativeBlockID);
+
+        // Reset the new cell buffer
+        //newCellsBuffer.SetData(shape);
+
+        // Flush deadCells and deadBlocks Buffer
+        deadBlocksBuffer.SetCounterValue(0);
+        deadCellsBuffer.SetCounterValue(0);
+
+        // Find dead blocks
+        int kernel = gridCruncher.FindKernel("GetDeadBlocks");
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.SetBuffer(kernel, "deadBlocksBuffer", deadBlocksBuffer);
+        gridCruncher.Dispatch(kernel, blockArray.Length / 64, 1, 1);
+
+        // Assign properties of the new block
+        kernel = gridCruncher.FindKernel("AssignBlockProperties");
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        gridCruncher.SetBuffer(kernel, "deadBlocksCurated", deadBlocksBuffer);
+        gridCruncher.SetBuffer(kernel, "newBlockId", newBlockId);
+        gridCruncher.Dispatch(kernel, 1, 1, 1);
+        newBlockId.GetData(newBlockIdArray);
+
+        // Get all the dead cells
+        kernel = gridCruncher.FindKernel("GetDeadCells");
+        gridCruncher.SetBuffer(kernel, "deadCellsBuffer", deadCellsBuffer);
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.Dispatch(kernel, cellArray.Length / 64, 1, 1);
+
+        // Add the new cells and set their properties
+        kernel = gridCruncher.FindKernel("AddCells");
+        gridCruncher.SetBuffer(kernel, "newCells", shapeDefinitionBuffers[shapeName]);
+        gridCruncher.SetBuffer(kernel, "cellBuffer", cellBuffer);
+        gridCruncher.SetBuffer(kernel, "blockBuffer", blockBuffer);
+        //deadCellsBuffer.SetCounterValue((uint)shape.Length);
+        gridCruncher.SetBuffer(kernel, "deadBlocksCurated", deadBlocksBuffer);
+        gridCruncher.SetBuffer(kernel, "deadCellsCurated", deadCellsBuffer);
+        gridCruncher.Dispatch(kernel, shapeDefinitionCount[shapeName] / 64, 1, 1);
+
+        RefreshGrid();
+
+        return newBlockIdArray[0];
     }
 
     public int CreateBlock(List<Vector2Int> shapeDefinition, Vector2Int position, BlockProperties properties, int relativeBlockID = -1)

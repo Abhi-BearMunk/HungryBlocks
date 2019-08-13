@@ -172,7 +172,7 @@ MonoBehaviour:
   spawnTime: 10
   playerObject: {fileID: 0}
   shape: 11
-  specialShape: 0
+  specialShape: 1
 --- !u!1 &70971248
 GameObject:
   m_ObjectHideFlags: 0
@@ -924,12 +924,12 @@ PrefabInstance:
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
       propertyPath: width
-      value: 128
+      value: 256
       objectReference: {fileID: 0}
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
       propertyPath: height
-      value: 72
+      value: 144
       objectReference: {fileID: 0}
     - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}

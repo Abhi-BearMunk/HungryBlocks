@@ -114,25 +114,25 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
         switch (rand)
         {
             case 0:
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB3], new Vector2Int(gridOperator.width / 2, gridOperator.height + 40), properties);
+                gridOperator.CreateBlock(ShapeDictionary.BlockShape.SkullB3, new Vector2Int(gridOperator.width / 2, gridOperator.height + 40), properties);
                 break;
             case 1:
                 properties.velocityX = 1;
                 properties.velocityY = 0;
                 //properties.subType = (Block.CellSubType.G);
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB3], new Vector2Int(-30, gridOperator.height / 2), properties);
+                gridOperator.CreateBlock(ShapeDictionary.BlockShape.SkullB3, new Vector2Int(-30, gridOperator.height / 2), properties);
                 break;
             case 2:
                 properties.velocityX = -1;
                 properties.velocityY = 0;
                 //properties.subType = (Block.CellSubType.B);
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB3], new Vector2Int(gridOperator.width + 30, gridOperator.height / 2), properties);
+                gridOperator.CreateBlock(ShapeDictionary.BlockShape.SkullB3, new Vector2Int(gridOperator.width + 30, gridOperator.height / 2), properties);
                 break;
             case 3:
                 properties.velocityX = 0;
                 properties.velocityY = 1;
                 //properties.subType = (Block.CellSubType.Y);
-                gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB3], new Vector2Int(gridOperator.width / 2, -40), properties);
+                gridOperator.CreateBlock(ShapeDictionary.BlockShape.SkullB3, new Vector2Int(gridOperator.width / 2, -40), properties);
                 break;
         }
     }
@@ -159,7 +159,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
             properties.KillableByNonMatching = 1;
             properties.isGrenade = 0;
 
-            gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1,8)], new Vector2Int(Random.Range(0, gridOperator.width), Random.Range(0, gridOperator.height)), properties);
+            gridOperator.CreateBlock((ShapeDictionary.BlockShape)Random.Range(1,8), new Vector2Int(Random.Range(0, gridOperator.width), Random.Range(0, gridOperator.height)), properties);
         }
     }
 
@@ -205,14 +205,14 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
 
     void Spawn8()
     {
-        List<Vector2Int> shape;
+        ShapeDictionary.BlockShape shape;
         if(!specialShape)
         {
-            shape = ShapeDictionary.shapeDefinitions[(ShapeDictionary.BlockShape)Random.Range(1, 8)];
+            shape = (ShapeDictionary.BlockShape)Random.Range(1, 8);
         }
         else
         {
-            shape = ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB2];
+            shape = ShapeDictionary.BlockShape.SkullB2;
         }
 
 
@@ -259,7 +259,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     void SpawnPlayer()
     {
         BlockProperties properties;
-        properties.moveTicks = 8;
+        properties.moveTicks = 1;
         //properties.moveTicks = 1;
         properties.velocityX = 0;
         properties.velocityY = 0;
@@ -275,7 +275,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
         properties.KillableByNonMatching = 1;
         properties.isGrenade = 0;
 
-        playerController.playerId = gridOperator.CreateBlock(ShapeDictionary.shapeDefinitions[ShapeDictionary.BlockShape.SkullB], new Vector2Int(gridOperator.width / 2, gridOperator.height / 2), properties);
+        playerController.playerId = gridOperator.CreateBlock(ShapeDictionary.BlockShape.SkullB, new Vector2Int(gridOperator.width / 2, gridOperator.height / 2), properties);
         gridOperator.player1ID = playerController.playerId;
         gridOperator.GetComponent<PlayerShootController>().playerType = (Block.CellSubType)properties.subType;
     }
