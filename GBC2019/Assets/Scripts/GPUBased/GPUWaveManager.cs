@@ -259,7 +259,7 @@ public class GPUWaveManager : MonoBehaviour, IWaveManager
     void SpawnPlayer()
     {
         BlockProperties properties;
-        properties.moveTicks = 1;
+        properties.moveTicks = 3;
         //properties.moveTicks = 1;
         properties.velocityX = 0;
         properties.velocityY = 0;

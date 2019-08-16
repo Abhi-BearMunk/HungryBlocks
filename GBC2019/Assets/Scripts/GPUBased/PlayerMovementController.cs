@@ -36,10 +36,16 @@ public class PlayerMovementController : MonoBehaviour
             rotationDirection = -1;
         }
 
-        if (moveInt != lastMove || rotationDirection != 0)
+        if (moveInt != lastMove)
         {
-            gridOperator.SetVelocity(playerId, moveInt.x, moveInt.y, rotationDirection);
+            gridOperator.SetVelocity(playerId, moveInt.x, moveInt.y);
         }
+
+        if (rotationDirection != 0)
+        {
+            gridOperator.SetRotation(playerId, rotationDirection);
+        }
+
         lastMove = moveInt;
         rotationDirection = 0;
     }

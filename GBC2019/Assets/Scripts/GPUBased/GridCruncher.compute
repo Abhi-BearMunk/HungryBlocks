@@ -8,6 +8,7 @@
 #pragma kernel FlushBlockBounds
 #pragma kernel UpdateBlockBoundsAndOtherEndPhaseData
 #pragma kernel UpdateBlockCentersAndMaxBlockBound
+#pragma kernel UpdatePlayerAimReticles
 #pragma kernel GetBlockCenterCellDistance
 #pragma kernel GetBlockCenterGridID
 #pragma kernel GetBlockCenterCell
@@ -15,7 +16,8 @@
 #pragma kernel ConnectCellToCenter
 #pragma kernel DestroyDisconnectedCells
 #pragma kernel TickBlock
-#pragma kernel SetVelocityAndRotationById
+#pragma kernel SetVelocityById
+#pragma kernel SetRotationById
 #pragma kernel CheckBlockCollisions
 #pragma kernel UpdateAttatchBlockID
 #pragma kernel AttatchBlockCells
@@ -66,6 +68,7 @@ struct BlockStruct
     int rotateDirection;
     int aboutToDie;
     int isGrenade;
+    int cellCount;
 };
 
 struct CellStruct
@@ -133,6 +136,9 @@ int player1ID;
 float aimArrowNormalizedSize;
 RWStructuredBuffer<PlayerAimData> playerAimData : register(u11);
 int2 aimDirection;
+
+// Shape Check params
+RWStructuredBuffer<int2> shapeToCheck : register(u12);
 
 //PowerUp Params
 int detonationRadius;
@@ -269,6 +275,9 @@ void AssignBlockProperties(uint3 id : SV_DispatchThreadID)
     blockBuffer[deadBlocksCurated[0]].centerCellSquareDistance = 10000;
     blockBuffer[deadBlocksCurated[0]].centerGridID = width * height + 10000;
     blockBuffer[deadBlocksCurated[0]].centerCellID = -1;
+    blockBuffer[deadBlocksCurated[0]].centerX = 0;
+    blockBuffer[deadBlocksCurated[0]].centerY = 0;
+    blockBuffer[deadBlocksCurated[0]].cellCount = 0;
     blockBuffer[deadBlocksCurated[0]].aboutToDie = 0;
 	blockBuffer[deadBlocksCurated[0]].dead = 1;
 }
@@ -358,6 +367,9 @@ void FlushBlockBounds(uint3 id : SV_DispatchThreadID)
     blockBuffer[blockId].centerCellSquareDistance = 10000;
     blockBuffer[blockId].centerGridID = width * height + 10000;
     blockBuffer[blockId].centerCellID = -1;
+    blockBuffer[blockId].centerX = 0;
+    blockBuffer[blockId].centerY = 0;
+    blockBuffer[blockId].cellCount = 0;
     maxBlockBounds[0].x = 0;
     maxBlockBounds[0].y = 0;
     for (int i = 0; i < 9; i++)
@@ -378,16 +390,20 @@ void UpdateBlockBoundsAndOtherEndPhaseData(uint3 id : SV_DispatchThreadID)
 		InterlockedMax(blockBuffer[cellBuffer[cellId].parentBlockID].up, (int)cellBuffer[cellId].gridPosY, temp);
 		InterlockedMin(blockBuffer[cellBuffer[cellId].parentBlockID].down, (int)cellBuffer[cellId].gridPosY, temp);
 
-        CellStruct cell = cellBuffer[cellId];
-        BlockStruct playerBlock = blockBuffer[player1ID];
-        int2 deltaOffset = int2(cell.gridPosX - playerBlock.centerX, cell.gridPosY - playerBlock.centerY);
-        if ((deltaOffset.x == 0 || deltaOffset.y == 0 || abs(deltaOffset.x) == abs(deltaOffset.y)) && cell.parentBlockID != player1ID)
-        {
-            int2 deltaOffsetNorm = int2(sign(deltaOffset.x), sign(deltaOffset.y));
-            int directionId = 3 * (deltaOffsetNorm.y + 1) + deltaOffsetNorm.x + 1;
-            InterlockedMin(playerAimData[0].directions[directionId], max(abs(deltaOffset.x), abs(deltaOffset.y)));
+        InterlockedAdd((int) blockBuffer[cellBuffer[cellId].parentBlockID].centerX, (int) cellBuffer[cellId].gridPosX);
+        InterlockedAdd((int) blockBuffer[cellBuffer[cellId].parentBlockID].centerY, (int) cellBuffer[cellId].gridPosY);
+        InterlockedAdd((int) blockBuffer[cellBuffer[cellId].parentBlockID].cellCount, 1);
+
+        //CellStruct cell = cellBuffer[cellId];
+        //BlockStruct playerBlock = blockBuffer[player1ID];
+        //int2 deltaOffset = int2(cell.gridPosX - playerBlock.centerX, cell.gridPosY - playerBlock.centerY);
+        //if ((deltaOffset.x == 0 || deltaOffset.y == 0 || abs(deltaOffset.x) == abs(deltaOffset.y)) && cell.parentBlockID != player1ID)
+        //{
+        //    int2 deltaOffsetNorm = int2(sign(deltaOffset.x), sign(deltaOffset.y));
+        //    int directionId = 3 * (deltaOffsetNorm.y + 1) + deltaOffsetNorm.x + 1;
+        //    InterlockedMin(playerAimData[0].directions[directionId], max(abs(deltaOffset.x), abs(deltaOffset.y)));
             
-        }       
+        //}       
     }
 }
 
@@ -395,13 +411,33 @@ void UpdateBlockBoundsAndOtherEndPhaseData(uint3 id : SV_DispatchThreadID)
 void UpdateBlockCentersAndMaxBlockBound(uint3 id : SV_DispatchThreadID)
 {
 	int blockId = id.x;
-    // HACK to make sure only non empty blocks are shecked, because dead set happens later
+    // HACK to make sure only non empty blocks are checked, because dead set happens later
     if (blockBuffer[blockId].dead == 1 && blockBuffer[blockId].left != 10000)
 	{
-		blockBuffer[blockId].centerX = floor((blockBuffer[blockId].left + blockBuffer[blockId].right) * 0.5);
-        blockBuffer[blockId].centerY = floor((blockBuffer[blockId].up + blockBuffer[blockId].down) * 0.5);
+		//blockBuffer[blockId].centerX = floor((blockBuffer[blockId].left + blockBuffer[blockId].right) * 0.5);
+        //blockBuffer[blockId].centerY = floor((blockBuffer[blockId].up + blockBuffer[blockId].down) * 0.5);
+        blockBuffer[blockId].centerX = floor((float)blockBuffer[blockId].centerX / (float)blockBuffer[blockId].cellCount);
+        blockBuffer[blockId].centerY = floor((float)blockBuffer[blockId].centerY / (float)blockBuffer[blockId].cellCount);
         InterlockedMax(maxBlockBounds[0].x, (int) (blockBuffer[blockId].right - blockBuffer[blockId].left));
         InterlockedMax(maxBlockBounds[0].y, (int) (blockBuffer[blockId].up - blockBuffer[blockId].down));
+    }
+}
+
+[numthreads(64, 1, 1)]
+void UpdatePlayerAimReticles(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+    if (cellBuffer[cellId].dead == 1)
+    {
+        CellStruct cell = cellBuffer[cellId];
+        BlockStruct playerBlock = blockBuffer[player1ID];
+        int2 deltaOffset = int2(cell.gridPosX - playerBlock.centerX, cell.gridPosY - playerBlock.centerY);
+        if ((deltaOffset.x == 0 || deltaOffset.y == 0 || abs(deltaOffset.x) == abs(deltaOffset.y)) && cell.parentBlockID != player1ID)
+        {
+            int2 deltaOffsetNorm = int2(sign(deltaOffset.x), sign(deltaOffset.y));
+            int directionId = 3 * (deltaOffsetNorm.y + 1) + deltaOffsetNorm.x + 1;
+            InterlockedMin(playerAimData[0].directions[directionId], max(abs(deltaOffset.x), abs(deltaOffset.y)));           
+        }
     }
 }
 
@@ -533,14 +569,32 @@ void TickBlock(uint3 id : SV_DispatchThreadID)
 }
 
 [numthreads(1, 1, 1)]
-void SetVelocityAndRotationById(uint3 id : SV_DispatchThreadID)
+void SetVelocityById(uint3 id : SV_DispatchThreadID)
 {
     VelocityData data = setVelocityBuffer[id.x];
     int blockId = data.blockId;
     blockBuffer[blockId].velocityX = data.velocityX;
     blockBuffer[blockId].velocityY = data.velocityY;
     blockBuffer[blockId].currentTick = blockBuffer[blockId].moveTicks * (abs(data.velocityX) + abs(data.velocityY));
+}
+
+[numthreads(1, 1, 1)]
+void SetRotationById(uint3 id : SV_DispatchThreadID)
+{
+    VelocityData data = setVelocityBuffer[id.x];
+    int blockId = data.blockId;
     blockBuffer[blockId].rotateDirection = data.rotationDirection;
+}
+
+[numthreads(64, 1, 1)]
+void CheckShapeMatch(uint3 id : SV_DispatchThreadID)
+{
+    int cellId = id.x;
+	// Get Cell
+    CellStruct cell = cellBuffer[cellId];
+	//Get Block
+    BlockStruct block = blockBuffer[cell.parentBlockID];
+
 }
 
 [numthreads(64, 1, 1)]
