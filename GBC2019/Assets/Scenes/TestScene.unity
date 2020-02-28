@@ -961,6 +961,11 @@ PrefabInstance:
       propertyPath: doAttatchment
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6670114014473361622, guid: 7e8ffd27267e0e14dba2833683cbed70,
+        type: 3}
+      propertyPath: numberOfIterationsPerFixedUpdate
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6670114014473361617, guid: 7e8ffd27267e0e14dba2833683cbed70,
         type: 3}
       propertyPath: m_Enabled

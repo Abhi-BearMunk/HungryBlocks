@@ -1,0 +1,28 @@
+﻿///***
+// Handles passing of Input data from CPU
+///***
+#pragma kernel SetVelocityById
+#pragma kernel SetRotationById
+
+#include "GridCommon.cginc"
+
+struct VelocityData
+{
+    int blockId;
+    int velocityX;
+    int velocityY;
+};
+
+struct RotationData
+{
+    int blockId;
+    int rotationDirection;
+};
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+
+    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+}
